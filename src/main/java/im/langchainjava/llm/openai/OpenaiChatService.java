@@ -26,8 +26,8 @@ public class OpenaiChatService implements LlmService{
 
     OpenaiConnector openaiConnector;
 
-    public OpenaiChatService(OpenaiConnector connector, String token, String model, double temperature, int maxTokens, int choiceNum, String stop){
-        this.openaiConnector = connector;
+    public OpenaiChatService(String token, String model, double temperature, int maxTokens, int choiceNum, String stop){
+        this.openaiConnector = new OpenaiConnectorImpl(token);
         this.token = token;
         this.model = model;
         this.temperature = temperature;
@@ -49,7 +49,8 @@ public class OpenaiChatService implements LlmService{
             .stop(stopWords)
             .n(this.choiceNumber)
             .build();
-        ChatCompletionResult result = openaiConnector.setToken(this.token).chatCompletion(chatCompletionRequest);
+        ChatCompletionResult result = openaiConnector.chatCompletion(chatCompletionRequest);
+
         List<ChatCompletionChoice> choices = result.getChoices();
         if(choices.isEmpty()){
             return "";

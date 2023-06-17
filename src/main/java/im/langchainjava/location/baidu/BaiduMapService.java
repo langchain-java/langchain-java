@@ -1,6 +1,6 @@
 package im.langchainjava.location.baidu;
 
-import static im.langchainjava.location.baidu.BaiduMapConnector.STATUS_SUCCESS;
+import static im.langchainjava.location.baidu.BaiduMapConnectorImpl.STATUS_SUCCESS;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -10,7 +10,6 @@ import im.langchainjava.location.baidu.dto.BaiduMapPlaceChild;
 import im.langchainjava.location.baidu.dto.BaiduPlaceDetail;
 import im.langchainjava.location.baidu.dto.BaiduPlaceResult;
 import im.langchainjava.location.baidu.dto.BaiduPlaceSuggestion;
-import im.langchainjava.utils.JsonUtils;
 
 public class BaiduMapService implements LocationService{
 
@@ -18,8 +17,8 @@ public class BaiduMapService implements LocationService{
 
     String ak;
 
-    public BaiduMapService(BaiduMapConnector c, String key){
-        this.connector = c;
+    public BaiduMapService(String key){
+        this.connector = new BaiduMapConnectorImpl();
         this.ak = key;
     }
 
@@ -32,8 +31,7 @@ public class BaiduMapService implements LocationService{
             cityQuery = city.trim();
         }
 
-        String suggestString = connector.getPlaceSuggestions(query, cityQuery, true, ak, JSON);
-        BaiduPlaceSuggestion suggest = JsonUtils.toObject(suggestString, BaiduPlaceSuggestion.class);
+        BaiduPlaceSuggestion suggest = connector.getPlaceSuggestions(query, cityQuery, true, ak, JSON);
         List<Place> places = new ArrayList<>();
         if(suggest!=null && suggest.getStatus() == STATUS_SUCCESS && suggest.getResult() != null){
             for(BaiduPlaceResult r : suggest.getResult()){
@@ -49,8 +47,7 @@ public class BaiduMapService implements LocationService{
                     }
                 }
 
-                String detailStr = connector.getPlaceDetail(r.getUid(), JSON, 2, ak);
-                BaiduPlaceDetail detail = JsonUtils.toObject(detailStr, BaiduPlaceDetail.class);
+                BaiduPlaceDetail detail = connector.getPlaceDetail(r.getUid(), JSON, 2, ak);
                 Place p = new Place();
 
                 if(detail != null && detail.getResult() != null && detail.getResult().getDetailInfo() != null && detail.getResult().getDetailInfo().getDetailUrl() != null){

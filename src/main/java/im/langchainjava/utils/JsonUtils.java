@@ -7,9 +7,13 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 public class JsonUtils {
     public static JsonMapper mapper = new JsonMapper();
+    static{
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+    }
 
     public static Map<String,String> toMapOf(String json){
         try {
@@ -32,6 +36,15 @@ public class JsonUtils {
     public static <T> T toObject(String json, Class<T> clazz){
         try {
             return mapper.readerFor(clazz).readValue(json, clazz);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static <T> String fromObject(T obj){
+        try {
+            return mapper.writerFor(new TypeReference<T>(){}).writeValueAsString(obj);
         } catch (IOException e) {
             e.printStackTrace();
             return null;

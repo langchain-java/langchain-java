@@ -18,8 +18,8 @@ public class OpenaiEmbeddingService implements EmbeddingService{
 
     OpenaiEmbeddingConnector openaiConnector;
 
-    public OpenaiEmbeddingService(OpenaiEmbeddingConnector connector, String token, String model){
-        this.openaiConnector = connector;
+    public OpenaiEmbeddingService(String token, String model){
+        this.openaiConnector = new OpenaiEmbeddingConnectorImpl(token);
         this.token = token;
         this.model = model;
     }
@@ -30,7 +30,7 @@ public class OpenaiEmbeddingService implements EmbeddingService{
                 .input(text)
                 .user(user)
                 .build();
-        EmbeddingResult result = openaiConnector.setToken(this.token).embeddings(request);
+        EmbeddingResult result = openaiConnector.embeddings(request);
         if(result != null && result.getData()!= null && !result.getData().isEmpty()){
             List<List<Double>> embeddings = new ArrayList<>();
             for(Embedding embd: result.getData()){

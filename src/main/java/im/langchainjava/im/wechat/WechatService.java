@@ -10,7 +10,13 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import im.langchainjava.im.ImService;
 import im.langchainjava.im.wechat.dto.WechatAccessToken;
 import im.langchainjava.im.wechat.dto.WechatInTextMessage;
+import im.langchainjava.im.wechat.dto.WechatOutTextMessage;
+import im.langchainjava.im.wechat.dto.WechatSendMsgResponse;
+import im.langchainjava.utils.JsonUtils;
+import im.langchainjava.utils.RestUtil;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class WechatService implements ImService{
 
     final private static XmlMapper xmlMapper = new XmlMapper();
@@ -29,8 +35,8 @@ public class WechatService implements ImService{
 
     final private Map<String, Long> messageIdMap = new HashMap<>();
 
-    public WechatService(WechatConnector connector, String appId, String secret){
-        this.connector = connector;
+    public WechatService(String appId, String secret){
+        this.connector = new WechatConnectorImpl();
         this.appId = appId;
         this.secret = secret;
     }
@@ -47,6 +53,10 @@ public class WechatService implements ImService{
     }
 
     public boolean sendMessageToUser(String uid, String text){
+
+        WechatSendMsgResponse resp = connector.sendMessage(getAccessToken(), WechatOutTextMessage.createMessage(uid, text));
+        log.info(JsonUtils.fromObject(resp));
+        
         return true;
     }
 
