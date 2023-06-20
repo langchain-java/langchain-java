@@ -1,60 +1,28 @@
 package im.langchainjava.tool.askuser;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.function.Function;
-
-import im.langchainjava.agent.AsyncAgent.TriggerInput;
-import im.langchainjava.agent.mrklagent.OneRoundMrklAgent;
 import im.langchainjava.im.ImService;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.parser.Action;
-import im.langchainjava.tool.Tool;
+import im.langchainjava.tool.BasicTool;
 
-public class InformUserTool implements Tool{
+public class InformUserTool extends BasicTool{
+
+    private static String DEF_MSG = "请问您有什么问题需要咨询吗;)?"; 
 
     ImService wechat;
 
-    Map<String,AsyncToolOut> users;
-
-    ChatMemoryProvider memoryProvider;
-
-    String desc;
-    
     String defaultMsg;
 
-    public class GreetingToolCallback implements Function<TriggerInput, Void>{
-        @Override
-        public Void apply(TriggerInput input) {
-            if(users.getOrDefault(input.getUser(), null)!=null){
-                memoryProvider.drainPendingMessages(input.getUser());
-                users.get(input.getUser()).applyLater(input);
-                users.remove(input.getUser());
-            }
-            return null;
-        }
-    } 
-    
-    public void registerTool(OneRoundMrklAgent agent){
-        agent.registerTrigger(new GreetingToolCallback());
-    }
-
-    public InformUserTool(ImService wechat, ChatMemoryProvider memoryProvider){
+    public InformUserTool(ChatMemoryProvider memoryProvider, ImService wechat){
+        super(memoryProvider);
         this.wechat = wechat;
-        this.memoryProvider = memoryProvider;
-        this.users = new HashMap<>();
-        this.desc = null;
         this.defaultMsg = null;
     }
 
-    public InformUserTool(ImService wechat, ChatMemoryProvider memoryProvider, String desc, String defaultMsg){
-        this.wechat = wechat;
-        this.memoryProvider = memoryProvider;
-        this.users = new HashMap<>();
-        this.desc = desc;
-        this.defaultMsg = defaultMsg;
+    public InformUserTool defaultMessage(String message){
+        this.defaultMsg = message;
+        return this;
     }
-
 
     @Override
     public String getToolName() {
@@ -62,19 +30,19 @@ public class InformUserTool implements Tool{
     }
 
     @Override
-    public String getToolDescription() {
-        if(this.desc != null){
-            return this.desc;
-        }
+    public String getDescription() {
         return " never use this tool to search for answers to the question. "
             + " Use this tool to reply to the user's message. "
             + " If the user's intention is greeting, you should greet back. "
-            + " Whatever the user said, you should always reply politly in Chinese in the action input. "
-            + " Input always starts with `Action Input:`. Input contains your message to the user in Chinese, followed by `[提示: some examples of user's next input in Chinese]`. "
-            + " Sample input: `Action Input: things to inform user in Chinese. [提示: examples of user's next input in Chinese]`.";
+            + " Whatever the user said, you should always reply politly in Chinese in the action input. ";
     }
 
-    private static String DEF_MSG = "请问您有什么问题需要咨询吗;)?"; 
+
+    @Override
+    public String getInputFormat() {
+        return "`Action Input` contains your message to the user in Chinese, followed by `[提示: some examples of user's next input in Chinese]`. "
+            + " Example: `Action Input: things to inform user in Chinese. [提示: examples of user's next input in Chinese]`.";
+    }
 
     private String getDefaultMessage(){
         if(this.defaultMsg != null){
@@ -93,15 +61,7 @@ public class InformUserTool implements Tool{
             message = getDefaultMessage();
         }
         wechat.sendMessageToUser(user, message);
-        AsyncToolOut out = ToolOuts.of(user, false).message(Tool.KEY_OBSERVATION,"").async();
-        this.users.put(user, out);
-        return out;
+        return waitUserInput(user);
     }
 
-    
-    @Override
-    public void onClearedMemory(String user) {
-        this.users.remove(user);
-    }
-    
 }

@@ -7,11 +7,14 @@ import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.location.LocationService;
 import im.langchainjava.location.LocationService.Place;
+import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.parser.Action;
-import im.langchainjava.tool.Tool;
+import im.langchainjava.tool.BasicTool;
 import im.langchainjava.utils.StringUtil;
 
-public class SimpleLocationTool implements Tool{
+public class SimpleLocationTool extends BasicTool{
+
+    public static int NUM_RESULT = 5;
 
     ImService wechat;
 
@@ -19,20 +22,19 @@ public class SimpleLocationTool implements Tool{
 
     LlmService llm;
 
-    String desc;
+    int number;
 
-    public SimpleLocationTool(ImService wechat, LocationService location, LlmService llm){
+    public SimpleLocationTool(ChatMemoryProvider memory, ImService wechat, LocationService location, LlmService llm){
+        super(memory);
         this.wechat = wechat;
         this.locationService = location;
         this.llm = llm;
-        this.desc = null;
+        this.number = NUM_RESULT;
     }
 
-    public SimpleLocationTool(ImService wechat, LocationService location, LlmService llm, String desc){
-        this.wechat = wechat;
-        this.locationService = location;
-        this.llm = llm;
-        this.desc = desc;
+    public SimpleLocationTool numberOfResults(int num){
+        this.number = num;
+        return this;
     }
 
     @Override
@@ -41,13 +43,15 @@ public class SimpleLocationTool implements Tool{
     }
 
     @Override
-    public String getToolDescription() {
-        if(this.desc != null){
-            return this.desc;
-        }
-        return " only use this tool when the user's intention is getting the location (or address) of a specific place. "
-            + " Never use this tool to find the names of attractions, shops or restaurants. "
-            + " Action Input is the Chinese name of the place followed by comma and city in Chinese, example: `Action Input:故宫,北京`.";
+    public String getDescription() {
+        return "only use this tool when the user's intention is getting the location (or address) of a specific place. "
+            + " Never use this tool to find the names of attractions, shops or restaurants.";
+    }
+
+
+    @Override
+    public String getInputFormat() {
+        return "`Action Input` is the Chinese name of the place followed by comma and city in Chinese, example: `Action Input:故宫,北京`.";
     }
 
     @Override
@@ -56,24 +60,21 @@ public class SimpleLocationTool implements Tool{
         String query = rawQueryStr.substring(0, rawQueryStr.indexOf("\n")).replace("\"", "");
         String[] queries = query.split(",");
         if(Array.getLength(queries) != 2){
-            return ToolOuts.of(user, true)
-                        .message(Tool.KEY_OBSERVATION, "Invalid input, the input must be the name of the place followed by comma and city, example: `故宫,北京`.")
-                        .message(Tool.KEY_THOUGHT, " I have had wrong input format. I should try this tool again with a corrected input format.")
-                        .sync();
+            return invalidInputFormat(user);
         }
         try{
 
             List<Place> places = locationService.queryPlace(queries[0], queries[1]); 
             String resp = "Could not find any location.";
             if(places == null || places.isEmpty()){
-                return ToolOuts.of(user, true)
-                        .message(Tool.KEY_OBSERVATION, resp)
-                        .message(Tool.KEY_THOUGHT, " There is no result. I should try another tool or tell the user `我找不到结果`.")
-                        .sync();
+                return onEmptyResult(user);
             }
             resp = "The following location is found: ";
+            int n = 0;
             for(Place p : places){
-    
+                if(n++ >= this.number){
+                    break;
+                }
                 resp = resp + p.getName() + ", address: " ;
                 if(!StringUtil.isNullOrEmpty(p.getProvince())){
                     resp = resp + p.getProvince();
@@ -87,20 +88,11 @@ public class SimpleLocationTool implements Tool{
     
                 resp = resp + "\n";
             }
-            return ToolOuts.of(user, true)
-                        .message(Tool.KEY_OBSERVATION, resp)
-                        .message(Tool.KEY_THOUGHT, " Now I have the results. I should inform the user with the location and location link I found.")
-                        .sync();
+            return onResult(user, resp);
         }catch(Exception e){
-            return ToolOuts.of(user, true)
-                        .message(Tool.KEY_OBSERVATION, "This tool is not available. Don't use this tool again.")
-                        .message(Tool.KEY_THOUGHT, " I should try another tool or tell the user `我找不到结果`.")
-                        .sync();
+            return onToolError(user);
         }
     }
 
-    @Override
-    public void onClearedMemory(String user) {
-    }
     
 }

@@ -3,6 +3,7 @@ package im.langchainjava.utils;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.HttpUrl;
@@ -15,7 +16,11 @@ import okhttp3.Response;
 @Slf4j
 public class RestUtil {
 
-    private static OkHttpClient client = new OkHttpClient();
+    private static OkHttpClient client = new OkHttpClient.Builder()
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .build();
 
     public static <T> T get(String url, Class<T> clazz){
         return get(url, null, null, clazz);

@@ -59,7 +59,7 @@ public class MrklChatPromptProvider extends BasicChatPromptProvider {
         List<String> toolDesc = new ArrayList<>();
         for(Tool t : this.tools){
             toolNames.add(t.getToolName());
-            toolDesc.add(t.getToolName() + ": \t" + t.getToolDescription());
+            toolDesc.add(t.formatToolUsage());
         }
         String toolStr = String.join(",", toolNames) + ".\n";
         String toolDescStr = "Tool Usage:\n" + String.join("\n", toolDesc) + "\n";

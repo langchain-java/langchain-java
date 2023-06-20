@@ -7,31 +7,25 @@ import com.theokanning.openai.completion.chat.ChatMessage;
 
 import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
+import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.parser.Action;
-import im.langchainjava.tool.Tool;
+import im.langchainjava.tool.BasicTool;
+import lombok.Setter;
 
-public class AskChatbotTool implements Tool{
+public class AskChatbotTool extends BasicTool{
 
     LlmService llm;
 
     ImService imService;
 
-    String desc;
-
+    @Setter
     String prompt;
 
-    public AskChatbotTool(LlmService llmService, ImService im){
+    public AskChatbotTool(ChatMemoryProvider memoryProvider, LlmService llmService, ImService im){
+        super(memoryProvider);
         this.llm = llmService;
         this.imService = im;
-        this.desc = null;
         this.prompt = null;
-    }
-
-    public AskChatbotTool(LlmService llmService, ImService im, String desc, String prompt){
-        this.llm = llmService;
-        this.imService = im;
-        this.desc = desc;
-        this.prompt = prompt;
     }
 
     @Override
@@ -40,15 +34,16 @@ public class AskChatbotTool implements Tool{
     }
 
     @Override
-    public String getToolDescription() {
-        if(this.desc != null){
-            return this.desc;
-        }
+    public String getDescription() {
         return "Only use this tool if you could not find good answer from the internet."
         + " Don't use this tool if you can not find user's intention. "
         + " Don't use this tool when you need to ask the user for more information."
-        + " Don't use this tool if you find user is insulting. "
-        + " Input should be the question to ask. "; 
+        + " Don't use this tool if you find user is insulting.";
+    }
+    
+    @Override
+    public String getInputFormat() {
+        return "`Action Input` should be a full formed question to ask."; 
     }
 
     private static String sys = "Answer the question below and reply in Chinese. If you don't have the answer, you may say `我不知道`."
@@ -69,16 +64,6 @@ public class AskChatbotTool implements Tool{
         prompt.add(new ChatMessage("system", getPrompt()));
         prompt.add(new ChatMessage("user", input));
         String resp = this.llm.chatCompletion(user, prompt);
-        return ToolOuts
-                .of(user, true)
-                .message(Tool.KEY_OBSERVATION, resp)
-                .message(Tool.KEY_THOUGHT, "Now I have result from chatbot, I need to inform user with the result. ")
-                .sync();
+        return onResult(user, resp);
     }
-
-    
-    @Override
-    public void onClearedMemory(String user) {
-    }
-    
 }

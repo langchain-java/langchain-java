@@ -3,12 +3,14 @@ package im.langchainjava.tool.vectorstore;
 import java.util.List;
 
 import im.langchainjava.im.ImService;
+import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.parser.Action;
+import im.langchainjava.tool.BasicTool;
 import im.langchainjava.tool.Tool;
 import im.langchainjava.vectorstore.Document;
 import im.langchainjava.vectorstore.VectorStore;
 
-public class VectorStoreTool implements Tool{
+public class VectorStoreTool extends BasicTool{
 
     String name;
 
@@ -16,36 +18,31 @@ public class VectorStoreTool implements Tool{
 
     ImService imService;
 
-    String desc;
+    public static int MAX_LENGTH = 1536;
 
-    public VectorStoreTool(String name, VectorStore store, ImService im){
+    public VectorStoreTool(ChatMemoryProvider memory, String name, VectorStore store, ImService im){
+        super(memory);
         this.name = name;
         this.vectorStore = store;
         this.imService = im;
-        this.desc = null;
     }
 
-    public VectorStoreTool(String name, VectorStore store, ImService im, String desc){
-        this.name = name;
-        this.vectorStore = store;
-        this.imService = im;
-        this.desc = desc;
-    }
 
     @Override
     public String getToolName() {
-        return name + "";
+        return name;
     }
 
     @Override
-    public String getToolDescription() {
-        if(this.desc != null){
-            return this.desc;
-        }
+    public String getDescription() {
         return ""
-            + " only use " + name + " tool if user's intented place is in " + name + ". "
-            + " Never assume user's departure or arrival location is in " + name + ". "
-            + " Input should be a fully formed English question. ";   
+            + "only use " + name + " tool if user's intented place is in " + name + ". "
+            + " Never assume user's departure or arrival location is in " + name + ".";   
+    }
+
+    @Override
+    public String getInputFormat() {
+        return "`Action Input` should be a fully formed English question.";
     }
 
     @Override
@@ -60,16 +57,11 @@ public class VectorStoreTool implements Tool{
             sb.append("\n <" + i + "> ").append(d.getContent().substring(0, Math.min(d.getContent().length(), 800))).append("\n");
             i++;
         }
-        return ToolOuts
-                .of(user, true)
-                .message(Tool.KEY_OBSERVATION, sb.substring(0, Math.min(sb.length(), 1536)))
-                .message(Tool.KEY_THOUGHT, "Now I have the results from " + name + ". I will inform user with the summarized result.")
-                .sync();
+        String resp = sb.substring(0, Math.min(sb.length(), MAX_LENGTH));
+        return onResult(user, resp);
     }
 
     
-    @Override
-    public void onClearedMemory(String user) {
-    }
+    
     
 }

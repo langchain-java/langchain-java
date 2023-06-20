@@ -19,8 +19,12 @@ public interface Tool {
     
     public String getToolName();
     public String getToolDescription();
+    public String getToolInputFormat();
     public ToolOut invoke(String user, Action<?> action);
     public void onClearedMemory(String user);
+    default public String formatToolUsage(){
+        return getToolName() + ": \t" + getToolDescription() + " " + getToolInputFormat();  
+    }
 
     public static interface ToolOut extends Function<Void,Boolean>{
         public ToolOut handlerForKey(String key, Function<TriggerInput, Void> fun);
