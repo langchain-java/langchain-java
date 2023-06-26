@@ -3,9 +3,9 @@ package im.langchainjava.search.google;
 import java.util.HashMap;
 import java.util.Map;
 
-import im.langchainjava.search.google.dto.Result;
 import im.langchainjava.search.google.dto.Search;
-import im.langchainjava.utils.RestUtil;
+import im.langchainjava.utils.HttpClientUtil;
+// import im.langchainjava.utils.RestUtil;
 
 public class GoogleSearchConnector {
     
@@ -44,7 +44,7 @@ public class GoogleSearchConnector {
         if(excludeTerms != null){
             params.put("excludeTerms", String.valueOf(excludeTerms));
         }
-        return RestUtil.get(url, params, Search.class);
+        return HttpClientUtil.get(url, params, Search.class);
     }
 
 }

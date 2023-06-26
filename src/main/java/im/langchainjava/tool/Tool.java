@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.function.Function;
 
 import im.langchainjava.agent.AsyncAgent.TriggerInput;
-import im.langchainjava.parser.Action;
+import im.langchainjava.llm.entity.function.FunctionCall;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -17,14 +17,10 @@ public interface Tool {
     public static String KEY_OBSERVATION = "Observation";
     public static String KEY_THOUGHT = "Thought";
     
-    public String getToolName();
-    public String getToolDescription();
-    public String getToolInputFormat();
-    public ToolOut invoke(String user, Action<?> action);
+    public im.langchainjava.llm.entity.function.Function getFunction();
+    public ToolOut invoke(String user, FunctionCall action);
     public void onClearedMemory(String user);
-    default public String formatToolUsage(){
-        return getToolName() + ": \t" + getToolDescription() + " " + getToolInputFormat();  
-    }
+
 
     public static interface ToolOut extends Function<Void,Boolean>{
         public ToolOut handlerForKey(String key, Function<TriggerInput, Void> fun);

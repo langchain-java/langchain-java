@@ -1,16 +1,21 @@
 package im.langchainjava.tool.vectorstore;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import im.langchainjava.im.ImService;
+import im.langchainjava.llm.entity.function.FunctionCall;
+import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.parser.Action;
 import im.langchainjava.tool.BasicTool;
-import im.langchainjava.tool.Tool;
 import im.langchainjava.vectorstore.Document;
 import im.langchainjava.vectorstore.VectorStore;
 
 public class VectorStoreTool extends BasicTool{
+
+    private static String PARAM_QUERY = "query";
 
     String name;
 
@@ -27,28 +32,40 @@ public class VectorStoreTool extends BasicTool{
         this.imService = im;
     }
 
-
     @Override
-    public String getToolName() {
+    public String getName() {
         return name;
     }
 
     @Override
     public String getDescription() {
         return ""
-            + "only use " + name + " tool if user's intented place is in " + name + ". "
+            + "Only use " + name + " function if user's intented place is in " + name + ". "
             + " Never assume user's departure or arrival location is in " + name + ".";   
     }
 
     @Override
-    public String getInputFormat() {
-        return "`Action Input` should be a fully formed English question.";
+    public Map<String, FunctionProperty> getProperties() {
+        FunctionProperty query = FunctionProperty.builder()
+                .description("The query string to the vector store.")
+                .build();
+        Map<String, FunctionProperty> properties = new HashMap<>();
+        properties.put(PARAM_QUERY, query);
+        return properties;
     }
 
     @Override
-    public ToolOut invoke(String user, Action<?> action) {
-        List<Document> docs = this.vectorStore.similaritySearch(user, String.valueOf(action.getInput()), 5); 
-        if(docs == null || docs.isEmpty()){
+    public List<String> getRequiredProperties() {
+        List<String> required = new ArrayList<>();
+        required.add(PARAM_QUERY);
+        return required;
+    }
+
+    @Override
+    public ToolOut doInvoke(String user, FunctionCall call) {
+        String query = call.getParsedArguments().get(PARAM_QUERY);
+        List<Document> docs = this.vectorStore.similaritySearch(user, query, 5); 
+        if(docs == null || docs.isEmpty()){ 
             return null;
         }
         StringBuilder sb = new StringBuilder();

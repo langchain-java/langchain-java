@@ -7,8 +7,8 @@ import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import com.theokanning.openai.completion.chat.ChatMessage;
-
+import im.langchainjava.llm.entity.ChatMessage;
+import im.langchainjava.llm.entity.function.FunctionCall;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
@@ -83,7 +83,15 @@ public class ChatMemory{
     }
 
     public void addPendingMessageForRole(String role, String message){
-        this.pending.add(new ChatMessage(role, message));   
+        addPendingMessageForRole(role, message, null);
+    }
+
+    public void addPendingMessageForRole(String role, String message, String name){
+        addPendingMessageForRole(role, message, null, name);
+    }
+
+    public void addPendingMessageForRole(String role, String message, FunctionCall functionCall, String name){
+        this.pending.add(new ChatMessage(role, message, name, functionCall));   
         updateTimestamp();
     }
 
@@ -106,13 +114,11 @@ public class ChatMemory{
         return retList;
     }
 
-    private static int MAX_MEMORY_CHAT_MESSAGE_LENGTH = 250;
-
-    public void drainPendingMessagesToHist(boolean truncate){
+    public void drainPendingMessagesToHist(boolean truncate, String role){
         ChatMessage msg = this.pending.poll();
         while(msg != null){
-            if(truncate){
-                msg.setContent(msg.getContent().substring(0, Math.min(msg.getContent().length(), MAX_MEMORY_CHAT_MESSAGE_LENGTH)));
+            if(truncate && msg.getRole().equals(role)){
+                msg.setContent("<truncated>");
             }
             history.add(msg);
             msg = this.pending.poll();

@@ -8,28 +8,29 @@ import java.util.function.Function;
 import im.langchainjava.agent.MemoryAgent;
 import im.langchainjava.agent.command.CommandParser;
 import im.langchainjava.agent.command.CommandParser.Command;
+import im.langchainjava.agent.exception.FunctionCallException;
 import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
+import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.parser.Action;
-import im.langchainjava.parser.ChatResponseParser;
 import im.langchainjava.prompt.ChatPromptProvider;
 import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.Tool.ToolOut;
-import im.langchainjava.utils.StringUtil;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class OneRoundMrklAgent extends MemoryAgent{
 
     ImService wechatService;
 
     Map<String, Tool> tools;
 
-    public OneRoundMrklAgent(LlmService llm, ChatPromptProvider prompt, ChatMemoryProvider memory, ImService wechat, ChatResponseParser<?> parser, CommandParser cp, List<Tool> tools) {
-        super(llm, prompt, memory, parser,cp);
+    public OneRoundMrklAgent(LlmService llm, ChatPromptProvider prompt, ChatMemoryProvider memory, ImService wechat, CommandParser cp, List<Tool> tools) {
+        super(llm, prompt, memory, cp);
         this.wechatService = wechat;
         this.tools = new HashMap<>();
         for(Tool t: tools){
-            this.tools.put(t.getToolName(), t);
+            this.tools.put(t.getFunction().getName(), t);
         }
     }
 
@@ -39,68 +40,25 @@ public class OneRoundMrklAgent extends MemoryAgent{
             clear(user);
             return;
         }
-        this.wechatService.sendMessageToUser(user, "[help]\n #clear to clear the chatbot memory.");
+        this.wechatService.sendMessageToUser(user, "[help]\n #clear: clears the chatbot memory.");
     }
 
     public void showMemory(String user){
         super.getMemoryProvider().showMemory(user);
     }
 
-    @Override
-    public boolean onAssistantResponse(String user, Action<?> action) {
-        if(action == null){
-            wechatService.sendMessageToUser(user, "Action is null. This is unexpacted.");
-            return true;
-        }
-
-        if(!StringUtil.isNullOrEmpty(action.getThought())){
-            this.wechatService.sendMessageToUser(user, "[Thought]\n" + action.getThought());
-        }
-
-        if(action.getName().equals(MrklChatResponseParser.FINAL_ANSWER)){
-            String msg = String.valueOf(action.getInput());
-            wechatService.sendMessageToUser(user, msg);
-            return true;
-        }
-
-        if(this.tools.containsKey(action.getName())){
-            Tool t = this.tools.get(action.getName());
-            ToolOut toolOut = t.invoke(user, action);
-            if(toolOut == null){
-                onInternalError(user, action.getName(), "The tool returns null!");
-            }
-            return toolOut.handlerForKey(Tool.KEY_OBSERVATION, observation)
-                    .handlerForKey(Tool.KEY_THOUGHT, thought)
-                    .apply(null);
-        }
-        return true;
-    }
-
     // observation
     final private Function<TriggerInput, Void> observation = input -> {
-        super.getMemoryProvider().onReceiveAssisMessage(input.getUser(), "Observation: " + input.getMessage() + " \n");
-        return null;
+        super.getMemoryProvider().onReceiveFunctionCallResult(input.getUser(), "Function Call Result: \n" + input.getMessage() + " \n");
+        return null; 
     };
 
-    // observation and think
+    // think
     final private Function<TriggerInput, Void> thought = input -> {
         super.getMemoryProvider().onReceiveAssisMessage(input.getUser(), "Thought: " + input.getMessage() + " \n");
         return null;
     };
-
-
-    @Override
-    public boolean onUnexpactedAssistantResponse(String user, String raw) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'onUnexpactedAssistantResponse'");
-    }
-
-    @Override
-    public void onInternalError(String user, String raw, String errorMessage) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'onInternalError'");
-    }
-    
+   
     private void clear(String user){
         super.getMemoryProvider().reset(user);
         for (Tool t : this.tools.values()){
@@ -111,7 +69,8 @@ public class OneRoundMrklAgent extends MemoryAgent{
 
     @Override
     public void onMaxRound(String user) {
-        wechatService.sendMessageToUser(user, "[系统]\n小助手的记忆已经撑爆无法继续思考，请回复#clear重新开始交互吧。");
+        wechatService.sendMessageToUser(user, "[系统]\n小助手已经达到最大的交互数。");
+        clear(user);
     }
 
     @Override
@@ -121,6 +80,41 @@ public class OneRoundMrklAgent extends MemoryAgent{
 
     @Override
     public void onAiException(String user, Exception e) {
-        this.wechatService.sendMessageToUser(user, "[系统]\n因为和大模型的连接超时了，我暂时无法回答您这个问题，请再尝试问我问题。" );
+        this.wechatService.sendMessageToUser(user, "[系统]\n调用大模型的时候出错了，错误信息：\n" + e.getMessage() );
+    }
+
+    @Override
+    public void onMaxTokenExceeded(String user) {
+        wechatService.sendMessageToUser(user, "[系统]\n大模型记忆已经撑爆无法继续思考。");
+        clear(user);
+    }
+
+    @Override
+    public boolean onAssistantFunctionCall(String user, FunctionCall functionCall, String content) {
+
+        if(functionCall == null){
+            log.info("Function Call is null. This is unexpacted.");
+            wechatService.sendMessageToUser(user, "Function Call is null. This is unexpacted.");
+            return true;
+        }
+
+        if(this.tools.containsKey(functionCall.getName())){
+            Tool t = this.tools.get(functionCall.getName());
+            ToolOut toolOut = t.invoke(user, functionCall);
+            if(toolOut == null){
+                return onFunctionCallException(user, t, new FunctionCallException("Function call "+ t.getFunction().getName() + " returns null!"));
+            }
+            return toolOut.handlerForKey(Tool.KEY_OBSERVATION, observation)
+                    .handlerForKey(Tool.KEY_THOUGHT, thought)
+                    .apply(null);
+        }
+
+        return onFunctionCallException(user, null, new FunctionCallException("Function " + functionCall.getName() + " does not exist."));
+    }
+
+    @Override
+    public boolean onAssistantMessage(String user, String content) {
+        wechatService.sendMessageToUser(user, content);
+        return true;
     }
 }

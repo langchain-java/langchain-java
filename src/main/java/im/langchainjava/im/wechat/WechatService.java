@@ -13,7 +13,6 @@ import im.langchainjava.im.wechat.dto.WechatInTextMessage;
 import im.langchainjava.im.wechat.dto.WechatOutTextMessage;
 import im.langchainjava.im.wechat.dto.WechatSendMsgResponse;
 import im.langchainjava.utils.JsonUtils;
-import im.langchainjava.utils.RestUtil;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -83,6 +82,7 @@ public class WechatService implements ImService{
                 return new ImMessage(ImMessageType.text, user, message.getText());
             }
         } catch (JsonProcessingException e) {
+            e.printStackTrace();
             return new ImMessage(ImMessageType.invalidFormat, null, null);
         }
     }

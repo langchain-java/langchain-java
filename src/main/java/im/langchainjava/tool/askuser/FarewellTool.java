@@ -1,15 +1,21 @@
 package im.langchainjava.tool.askuser;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import im.langchainjava.im.ImService;
+import im.langchainjava.llm.entity.function.FunctionCall;
+import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.parser.Action;
 import im.langchainjava.tool.BasicTool;
 import im.langchainjava.tool.Tool;
 import im.langchainjava.utils.StringUtil;
 
 public class FarewellTool extends BasicTool{
+
+    public static String PARAM_MSG = "message";
 
     ImService im;
 
@@ -22,27 +28,41 @@ public class FarewellTool extends BasicTool{
     }
 
     @Override
-    public String getToolName() {
+    public String getName() {
         return "farewell";
     }
 
     @Override
     public String getDescription() {
-        return " always use this tool if user's intention is to farewell. Never farewell the user if user's intention is not farewell. " ; 
+        return " always use this function if user's intention is to farewell. Never farewell the user if user's intention is not farewell. " ; 
+    }
+
+
+    @Override
+    public Map<String, FunctionProperty> getProperties() {
+        FunctionProperty fp = FunctionProperty.builder()
+                .description("A fully formed farewell message in Chinese to the user, "
+                        + " followed by [提示: some examples of user's next input]. "
+                        + " Sample: fare well message to the user [提示: some examples of user's next input]")
+                .build();
+        Map<String, FunctionProperty> properties = new HashMap<>();
+        properties.put(PARAM_MSG, fp);
+        return properties;
     }
 
     @Override
-    public String getInputFormat() {
-        return " `Action Input` should be things to inform user followed by [提示: some examples of user's next input]. "
-                + " Sample `Action Input`: things to inform user [提示: some examples of user's next input]";
+    public List<String> getRequiredProperties() {
+        List<String> required = new ArrayList<>();
+        required.add(PARAM_MSG);
+        return required;
     }
 
     private static String MSG = "感谢您的咨询，再见";
 
     @Override
-    public ToolOut invoke(String user, Action<?> action) {
-        String message = String.valueOf(action.getInput());
-        if(action.getInput() == null || StringUtil.isNullOrEmpty(message)){
+    public ToolOut doInvoke(String user, FunctionCall functionCall) {
+        String message = functionCall.getParsedArguments().get(PARAM_MSG);
+        if(StringUtil.isNullOrEmpty(message)){
             message = MSG;
         }
         im.sendMessageToUser(user, message);

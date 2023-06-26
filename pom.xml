@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>im.langchainjava</groupId>
   <artifactId>langchainjava</artifactId>
-  <version>1.2.3-SNAPSHOT</version>
+  <version>1.5.2-SNAPSHOT</version>
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
@@ -34,11 +34,11 @@
       <version>2.0.6</version>
     </dependency>
 
-    <dependency>
+    <!-- <dependency>
       <groupId>com.theokanning.openai-gpt3-java</groupId>
       <artifactId>service</artifactId>
       <version>0.11.1</version>       
-    </dependency>
+    </dependency> -->
 
     <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
@@ -57,6 +57,12 @@
       <groupId>com.squareup.okhttp3</groupId>
       <artifactId>okhttp</artifactId>
       <version>5.0.0-alpha.11</version>
+    </dependency>
+
+    <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>4.5.13</version>
     </dependency>
 
     <!-- <dependency>

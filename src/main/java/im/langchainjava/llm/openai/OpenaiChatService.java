@@ -3,14 +3,19 @@ package im.langchainjava.llm.openai;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.theokanning.openai.completion.chat.ChatCompletionChoice;
-import com.theokanning.openai.completion.chat.ChatCompletionRequest;
-import com.theokanning.openai.completion.chat.ChatCompletionResult;
-import com.theokanning.openai.completion.chat.ChatMessage;
-
 import im.langchainjava.llm.LlmService;
+import im.langchainjava.llm.entity.ChatCompletionChoice;
+import im.langchainjava.llm.entity.ChatCompletionFailure;
+import im.langchainjava.llm.entity.ChatCompletionRequest;
+import im.langchainjava.llm.entity.ChatCompletionResult;
+import im.langchainjava.llm.entity.ChatMessage;
+import im.langchainjava.llm.entity.function.Function;
 
 public class OpenaiChatService implements LlmService{
+
+    public static String MODEL_GPT_3_5_TURBO_0613 = "gpt-3.5-turbo-0613";
+
+    public static String MODEL_GPT_3_5_TURBO = "gpt-3.5-turbo";
 
     String token;
 
@@ -37,27 +42,42 @@ public class OpenaiChatService implements LlmService{
     }
 
     @Override
-    public String chatCompletion(String user, List<ChatMessage> messages){
-        List<String> stopWords = new ArrayList<>();
-        stopWords.add(this.stop);
-        ChatCompletionRequest chatCompletionRequest = ChatCompletionRequest.builder()
+    public ChatMessage chatCompletion(String user, List<ChatMessage> messages, List<Function> functions, java.util.function.Function<ChatCompletionFailure, Void> errorHandler){
+        List<String> stopWords = null;
+        if(this.stop != null){
+           stopWords = new ArrayList<>();
+           stopWords.add(this.stop);
+        }
+        ChatCompletionRequest.ChatCompletionRequestBuilder chatCompletionRequestBuilder = ChatCompletionRequest.builder()
             .model(this.model)
             .messages(messages)
             .temperature(this.temperature)
             .maxTokens(this.maxTokens)
             .user(user)
             .stop(stopWords)
-            .n(this.choiceNumber)
-            .build();
+            .n(this.choiceNumber);
+        if(functions != null && !functions.isEmpty()){
+            chatCompletionRequestBuilder.functions(functions);
+        }
+
+        ChatCompletionRequest chatCompletionRequest = chatCompletionRequestBuilder.build();
         ChatCompletionResult result = openaiConnector.chatCompletion(chatCompletionRequest);
 
-        List<ChatCompletionChoice> choices = result.getChoices();
-        if(choices.isEmpty()){
-            return "";
+        if(result == null){
+            return null;
         }
-        String response = choices.get(0).getMessage().getContent();
-        return response;
+
+        if(result.getError() != null){
+            if(errorHandler != null){
+                errorHandler.apply(result.getError());
+            }
+            return null;
+        }
+        List<ChatCompletionChoice> choices = result.getChoices();
+        if(choices == null || choices.isEmpty()){
+            return null;
+        }
+        return choices.get(0).getMessage();
     }
-    
 
 }

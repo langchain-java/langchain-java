@@ -3,10 +3,10 @@ package im.langchainjava.embedding.openai;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.theokanning.openai.embedding.EmbeddingRequest;
-import com.theokanning.openai.embedding.EmbeddingResult;
-
-import im.langchainjava.utils.RestUtil;
+import im.langchainjava.embedding.entity.EmbeddingRequest;
+import im.langchainjava.embedding.entity.EmbeddingResult;
+import im.langchainjava.utils.HttpClientUtil;
+// import im.langchainjava.utils.RestUtil;
 import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
@@ -24,7 +24,7 @@ public class OpenaiEmbeddingConnectorImpl implements OpenaiEmbeddingConnector{
     public EmbeddingResult embeddings(EmbeddingRequest request) {
         Map<String, String> headers = new HashMap<String,String>();
         headers.put("Authorization", getToken());
-        return RestUtil.post(url, request, headers, EmbeddingResult.class);
+        return HttpClientUtil.post(url, request, headers, EmbeddingResult.class);
     }
     
 }

@@ -1,57 +1,71 @@
 package im.langchainjava.tool;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
 import im.langchainjava.agent.AsyncAgent.TriggerInput;
+import im.langchainjava.agent.exception.FunctionCallException;
 import im.langchainjava.agent.mrklagent.OneRoundMrklAgent;
+import im.langchainjava.llm.entity.function.FunctionCall;
+import im.langchainjava.llm.entity.function.FunctionParameter;
+import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.memory.ChatMemoryProvider;
+import im.langchainjava.utils.StringUtil;
 
 public abstract class BasicTool implements Tool {
 
-    public static String OBSERVATION_ON_EMPTY = "This tool does not give any result this time.";
-    public static String OBSERVATION_ON_ERR = "This tool is not available. Don't use this tool again.";
-    public static String THOUGHT_ON_EMPTY = "There is no result. I should try another tool or tell the user `我不知道`.";
-    public static String THOUGHT_ON_ERR = "I should try another tool or tell the user `我不知道`.";
+    public static String PARAMETER_TYPE_OBJECT = "object";
+
+    public static String OBSERVATION_ON_EMPTY = "This function does not give any result this time.";
+    public static String OBSERVATION_ON_ERR = "This function is not available. Don't use this function again.";
+    public static String THOUGHT_ON_EMPTY = "There is no result. I should try another function or tell the user `我不知道`.";
+    public static String THOUGHT_ON_ERR = "I should try another function or tell the user `我不知道`.";
     public static String THOUGHT = "Now I have the results. I should extract useful information from these results and inform the user.";
-    public static String OBSERVATION_ON_INVALID_INPUT = "The `Action Input` is in wrong format.";
-    public static String THOUGT_ON_INVALID_INPUT = "I should try this tool again with the following input format:\n";
+    public static String OBSERVATION_ON_INVALID_PARAM = "Invalid parameters: ";
+    public static String THOUGT_ON_INVALID_PARAM = "I should ask the user to clarify the question or try the function again with corrected parameter.";
 
     String observationOnEmptyResult;
     String observationOnError;
-    String observationOnInvalidInputFormat;
+    String observationOnInvalidParameter;
     String thought;
     String thoughtOnEmptyResult;
     String thoughtOnError;
     String thoughtOnInvalidInputFormat;
     String desc;
-    String input;
+    Map<String, FunctionProperty> parameters;
+    List<String> required;
 
     final public ChatMemoryProvider memoryProvider;
     final Map<String,AsyncToolOut> users = new HashMap<>();
 
+    public abstract String getName();
     public abstract String getDescription();
-    public abstract String getInputFormat();
+    public abstract Map<String, FunctionProperty> getProperties();
+    public abstract List<String> getRequiredProperties();
+    public abstract ToolOut doInvoke(String user, FunctionCall call);
 
     public BasicTool(ChatMemoryProvider memoryProvider){
         this.memoryProvider = memoryProvider;
         this.observationOnEmptyResult = null;
         this.observationOnError = null;
-        this.observationOnInvalidInputFormat = null;
+        this.observationOnInvalidParameter = null;
         this.thought = null;
         this.thoughtOnEmptyResult = null;
         this.thoughtOnError = null;
         this.thoughtOnInvalidInputFormat = null;
         this.desc = null;
-        this.input = null;
+        this.parameters = null;
+        this.required = null;
     }
 
     public class ToolCallback implements Function<TriggerInput, Void>{
         @Override
         public Void apply(TriggerInput input) {
             if(users.getOrDefault(input.getUser(), null)!=null){
-                memoryProvider.drainPendingMessages(input.getUser());
+                memoryProvider.onAssistantResponsed(input.getUser());
+                memoryProvider.onAssistantResponsed(input.getUser());
                 users.get(input.getUser()).applyLater(input);
                 users.remove(input.getUser());
             }
@@ -64,13 +78,18 @@ public abstract class BasicTool implements Tool {
         return this;
     }
 
-    public BasicTool inputFormat(String input){
-        this.input = input;
+    public BasicTool inputFormat(Map<String, FunctionProperty> param){
+        this.parameters = param;
+        return this;
+    }
+
+    public BasicTool required(List<String> required){
+        this.required =required;
         return this;
     }
 
     public BasicTool observationOnInvalidInputFormat(String obs){
-        this.observationOnInvalidInputFormat = obs;
+        this.observationOnInvalidParameter = obs;
         return this;
     }
 
@@ -113,8 +132,8 @@ public abstract class BasicTool implements Tool {
         return (this.observationOnError != null) ? this.observationOnError : OBSERVATION_ON_ERR; 
     }
 
-    public String getObservationOnInvalidInputFormat(){
-        return (this.observationOnInvalidInputFormat != null) ? this.observationOnInvalidInputFormat : OBSERVATION_ON_INVALID_INPUT;
+    public String getObservationOnInvalidParameter(String message){
+        return ((this.observationOnInvalidParameter != null) ? this.observationOnInvalidParameter : OBSERVATION_ON_INVALID_PARAM) + " " + message;
     }
 
     public String getThought(){
@@ -129,38 +148,50 @@ public abstract class BasicTool implements Tool {
         return (this.thoughtOnError != null) ? this.thoughtOnError : THOUGHT_ON_ERR;
     }
 
-    public String getThoughtOnInvalidInputFormat(){
-        String prefix = (this.thoughtOnInvalidInputFormat != null) ? this.thoughtOnInvalidInputFormat : THOUGT_ON_INVALID_INPUT;
-        return prefix + " " + getToolInputFormat();
+    public String getThoughtOnInvalidParameter(){
+        return (this.thoughtOnInvalidInputFormat != null) ? this.thoughtOnInvalidInputFormat : THOUGT_ON_INVALID_PARAM;
     }
 
-    @Override
-    final public String getToolDescription() {
+    final public String getFunctionDescription() {
         if(this.desc != null){
             return this.desc;
         }
         return getDescription();
     }
-    
-    @Override
-    final public String getToolInputFormat() {
-        if(this.input != null){
-            return this.input;
+
+    final public Map<String, FunctionProperty> getFunctionProperties(){
+        if(this.parameters != null){
+            return this.parameters;
         }
-        return getInputFormat(); 
+        return getProperties();
     }
 
-    public ToolOut invalidInputFormat(String user){
+    final public List<String> getFunctionRequiredProperties(){
+        if(this.required != null){
+            return this.required;
+        }
+        return getRequiredProperties();
+    }
+    
+    final public FunctionParameter getFunctionParameters() {
+        return FunctionParameter.builder()
+                .type(PARAMETER_TYPE_OBJECT)
+                .properties(getFunctionProperties())
+                .required(getFunctionRequiredProperties())
+                .build();
+    }
+
+    public ToolOut invalidParameter(String user, String message){
         return ToolOuts.of(user, true)
-                        .message(Tool.KEY_OBSERVATION, getObservationOnInvalidInputFormat())
-                        .message(Tool.KEY_THOUGHT, getThoughtOnInvalidInputFormat())
+                        .message(Tool.KEY_OBSERVATION, getObservationOnInvalidParameter(message))
+                        .message(Tool.KEY_THOUGHT, getThoughtOnInvalidParameter())
                         .sync();
     }
 
     public AsyncToolOut waitUserInput(String user){
         AsyncToolOut out = ToolOuts.of(user, false)
-                                .message(Tool.KEY_OBSERVATION, "")
-                                .async();
+                            .message(KEY_OBSERVATION, "")
+                            .async();
         this.users.put(user, out);
         return out;
     }
@@ -195,6 +226,38 @@ public abstract class BasicTool implements Tool {
     @Override
     public void onClearedMemory(String user) {
         this.users.remove(user);
+    }
+
+    @Override
+    final public im.langchainjava.llm.entity.function.Function getFunction(){
+        return im.langchainjava.llm.entity.function.Function.builder()
+                .name(getName())
+                .description(getFunctionDescription())
+                .parameters(getFunctionParameters())
+                .build();
+    }
+
+    @Override
+    final public ToolOut invoke(String user, FunctionCall call){
+        if(call == null ){
+            throw new FunctionCallException("The function call is null!");
+        }
+        if(!call.getName().equals(getName())){
+            throw new FunctionCallException("The function name does not match function call. Function name is "+ getName() + " while the function call is " + call.getName() + "." );
+        }
+        List<String> requiredProperties = getFunctionRequiredProperties();
+        if(requiredProperties != null && !requiredProperties.isEmpty() && call.getParsedArguments() != null){
+            for(String r : requiredProperties){
+                if(!call.getParsedArguments().containsKey(r)){
+                    return invalidParameter(user, "Missing required parameter " + r + ".");
+                }
+                if(StringUtil.isNullOrEmpty(call.getParsedArguments().get(r))){
+                    return invalidParameter(user, "Required parameter " + r + " is null or empty.");
+                }
+            }
+        }
+
+        return doInvoke(user, call);
     }
 
     public void registerTool(OneRoundMrklAgent agent){

@@ -8,12 +8,15 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import com.theokanning.openai.completion.chat.ChatMessage;
-
+import im.langchainjava.agent.exception.AiResponseException;
 import im.langchainjava.llm.LlmService;
+import im.langchainjava.llm.entity.ChatCompletionFailure;
+import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.prompt.ChatPromptProvider;
+import im.langchainjava.utils.JsonUtils;
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +30,8 @@ public abstract class AsyncAgent {
 
     private static String MEMORY_KEY_RETRY = "retry";
     private static int MAX_RETRY = 3;
+
+    private static String CHAT_COMPLETION_FAILURE_CODE_TOKEN_LENGTH_EXCEED = "context_length_exceeded";
 
     ChatPromptProvider promptProvider;
 
@@ -53,11 +58,13 @@ public abstract class AsyncAgent {
 
     public abstract boolean onUserMessage(String user, String text);
 
-    public abstract boolean onAiResponse(String user, String response);
+    public abstract boolean onAiResponse(String user, ChatMessage response);
 
     public abstract void onUserMessageAtBusyTime(String user, String text);
 
     public abstract void onAiException(String user, Exception e);
+
+    public abstract void onMaxTokenExceeded(String user);
 
     public void chat(String user, String message){
         if(waiting.contains(user) || processing.contains(user)){
@@ -108,32 +115,64 @@ public abstract class AsyncAgent {
     }
 
     private void doChat(String user){
-        String resp = null;
+        ChatMessage chatMessage = null;
+        
         do{
-            List<ChatMessage> prompt = promptProvider.getPrompt(user);
-            StringBuilder sb = new StringBuilder();
+            ChatCompletionErrorHandler errorHandler = new ChatCompletionErrorHandler(user, null);
             List<ChatMessage> messages = memoryProvider.getPendingMessage(user);
             log.info("The pending message in memory # is:" + messages.size());
             if(messages.isEmpty()){
                 break;
             }
+            StringBuilder sb = new StringBuilder();
             for(ChatMessage m : messages){
                 if(m.getRole().equals(ROLE_USER)){
                     sb.append(m.getContent()).append("\n");
                 }
             }
             String message = sb.toString();
-            for(Function<TriggerInput,Void> trigger : this.triggers){
-                trigger.apply(new TriggerInput(user, message));
+            for(Function<TriggerInput, Void> trigger : this.triggers){
+                trigger.apply(new TriggerInput(user, message)); 
             }
-            resp = llm.chatCompletion(user, prompt); 
-        }while(!onAiResponse(user,resp));
+            chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user), promptProvider.getFunctions(user), errorHandler);
+            if(chatMessage == null){
+                if(errorHandler.getFailure() != null){
+                    if(errorHandler.getFailure().getCode() != null 
+                            && errorHandler.getFailure().getCode().equals(CHAT_COMPLETION_FAILURE_CODE_TOKEN_LENGTH_EXCEED)){
+                        log.info("Llm max token exceeded!");
+                        onMaxTokenExceeded(user);
+                        break;
+                    }
+                    onAiException(user, new AiResponseException(errorHandler.getFailure().getMessage()));
+                    break;
+                }
+                log.info("Llm service returns null!");
+                onAiException(user, new AiResponseException("Llm response nothing."));
+                break;
+            }
+        }while(!onAiResponse(user, chatMessage));
+    }
+
+    @Data
+    @AllArgsConstructor
+    public class ChatCompletionErrorHandler implements java.util.function.Function<ChatCompletionFailure, Void>{
+        String user;
+        ChatCompletionFailure failure = null; 
+        @Override
+        public Void apply(ChatCompletionFailure f) {
+            this.failure = f;
+            return null;
+        }
     }
 
     public void showMessages(List<ChatMessage> messages){
         System.out.println("-----------Prompt:-------------");
         for(ChatMessage m : messages){
-            System.out.println(m.getRole()+ ":\t" + m.getContent());
+            String message = m.getContent();
+            if(m.getFunctionCall() != null){
+                message = "FunctionCall: " + JsonUtils.fromObject(m.getFunctionCall());
+            }
+            System.out.println(m.getRole()+ ":\t" + message);
         }
         System.out.println("===========END of Prompt=======");
     }

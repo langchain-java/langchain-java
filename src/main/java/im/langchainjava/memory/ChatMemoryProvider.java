@@ -2,7 +2,8 @@ package im.langchainjava.memory;
 
 import java.util.List;
 
-import com.theokanning.openai.completion.chat.ChatMessage;
+import im.langchainjava.llm.entity.ChatMessage;
+import im.langchainjava.llm.entity.function.FunctionCall;
 
 public interface ChatMemoryProvider {
     List<ChatMessage> getPrompt(String user);
@@ -13,6 +14,10 @@ public interface ChatMemoryProvider {
 
     void onReceiveAssisMessage(String user, String message);
 
+    void onReceiveFunctionCall(String user, FunctionCall functionCall);
+
+    void onReceiveFunctionCallResult(String user, String message);
+
     void setContextForUser(String user, String key, Object value);
 
     Object getContextForUser(String user, String key, Object defaultValue);
@@ -21,11 +26,9 @@ public interface ChatMemoryProvider {
 
     int countUserMessage(String user);
 
-    void addEndingMessage(String user, String message);
-
     void clearEndingMessage(String user);
 
-    void onAssistantResponsed(String user, String message);
+    void onAssistantResponsed(String user);
 
     void showMemory(String user);
 

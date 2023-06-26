@@ -4,11 +4,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.theokanning.openai.embedding.Embedding;
-import com.theokanning.openai.embedding.EmbeddingRequest;
-import com.theokanning.openai.embedding.EmbeddingResult;
-
 import im.langchainjava.embedding.EmbeddingService;
+import im.langchainjava.embedding.entity.Embedding;
+import im.langchainjava.embedding.entity.EmbeddingRequest;
+import im.langchainjava.embedding.entity.EmbeddingResult;
 
 public class OpenaiEmbeddingService implements EmbeddingService{
 

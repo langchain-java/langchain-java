@@ -8,7 +8,7 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class BaiduPlaceDetainInfo {
+public class BaiduPlaceDetailInfo {
 
     String tag;
     @JsonProperty("navi_location")

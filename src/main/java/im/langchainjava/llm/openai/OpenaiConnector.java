@@ -1,7 +1,7 @@
 package im.langchainjava.llm.openai;
 
-import com.theokanning.openai.completion.chat.ChatCompletionRequest;
-import com.theokanning.openai.completion.chat.ChatCompletionResult;
+import im.langchainjava.llm.entity.ChatCompletionRequest;
+import im.langchainjava.llm.entity.ChatCompletionResult;
 
 public interface OpenaiConnector {
 

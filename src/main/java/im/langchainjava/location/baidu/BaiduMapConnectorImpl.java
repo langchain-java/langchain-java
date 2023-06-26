@@ -5,7 +5,8 @@ import java.util.Map;
 
 import im.langchainjava.location.baidu.dto.BaiduPlaceDetail;
 import im.langchainjava.location.baidu.dto.BaiduPlaceSuggestion;
-import im.langchainjava.utils.RestUtil;
+import im.langchainjava.utils.HttpClientUtil;
+// import im.langchainjava.utils.RestUtil;
 
 public class BaiduMapConnectorImpl implements BaiduMapConnector {
 
@@ -22,7 +23,7 @@ public class BaiduMapConnectorImpl implements BaiduMapConnector {
         params.put("ak", ak);
         params.put("output", "json");
 
-        return RestUtil.get(url, params, BaiduPlaceSuggestion.class);
+        return HttpClientUtil.get(url, params, BaiduPlaceSuggestion.class);
     }
 
 
@@ -33,6 +34,6 @@ public class BaiduMapConnectorImpl implements BaiduMapConnector {
         params.put("scope", String.valueOf(scope));
         params.put("ak", ak);
         params.put("output", "json");
-        return RestUtil.get(url, params, BaiduPlaceDetail.class);
+        return HttpClientUtil.get(url, params, BaiduPlaceDetail.class);
     }
 }

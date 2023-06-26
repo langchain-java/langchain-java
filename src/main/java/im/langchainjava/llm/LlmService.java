@@ -2,9 +2,10 @@ package im.langchainjava.llm;
 
 import java.util.List;
 
-import com.theokanning.openai.completion.chat.ChatMessage;
-
+import im.langchainjava.llm.entity.ChatCompletionFailure;
+import im.langchainjava.llm.entity.ChatMessage;
+import im.langchainjava.llm.entity.function.Function;
 
 public interface LlmService {
-    public String chatCompletion(String user, List<ChatMessage> messages);
+    public ChatMessage chatCompletion(String user, List<ChatMessage> messages, List<Function> functions, java.util.function.Function<ChatCompletionFailure, Void> errorHandler);
 }

@@ -1,20 +1,30 @@
 package im.langchainjava.tool.location;
 
-import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
+import im.langchainjava.llm.entity.function.FunctionCall;
+import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.location.LocationService;
+import im.langchainjava.location.LocationService.Location;
 import im.langchainjava.location.LocationService.Place;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.parser.Action;
 import im.langchainjava.tool.BasicTool;
+import im.langchainjava.utils.JsonUtils;
 import im.langchainjava.utils.StringUtil;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 public class SimpleLocationTool extends BasicTool{
 
     public static int NUM_RESULT = 5;
+
+    public static String PARAM_PLACE = "place";
+    public static String PARAM_CITY = "city";
 
     ImService wechat;
 
@@ -38,61 +48,77 @@ public class SimpleLocationTool extends BasicTool{
     }
 
     @Override
-    public String getToolName() {
+    public String getName() {
         return "locations";
     }
 
     @Override
     public String getDescription() {
-        return "only use this tool when the user's intention is getting the location (or address) of a specific place. "
-            + " Never use this tool to find the names of attractions, shops or restaurants.";
-    }
-
-
-    @Override
-    public String getInputFormat() {
-        return "`Action Input` is the Chinese name of the place followed by comma and city in Chinese, example: `Action Input:故宫,北京`.";
+        return "Only use this function when the user's intention is getting the location (or address) of a specific place. "
+            + " Never use this function to search for attractions, shops or restaurants.";
     }
 
     @Override
-    public ToolOut invoke(String user, Action<?> action) {
-        String rawQueryStr = String.valueOf(action.getInput()) + "\n";
-        String query = rawQueryStr.substring(0, rawQueryStr.indexOf("\n")).replace("\"", "");
-        String[] queries = query.split(",");
-        if(Array.getLength(queries) != 2){
-            return invalidInputFormat(user);
-        }
+    public Map<String, FunctionProperty> getProperties() {
+        FunctionProperty cityProperty = FunctionProperty.builder()
+                .description("The Chinese name of the city of the place to query.")
+                .build();
+        FunctionProperty placeProperty = FunctionProperty.builder()
+                .description("The place to query in Chinese.")
+                .build();
+        Map<String, FunctionProperty> properties = new HashMap<>();
+        properties.put(PARAM_CITY, cityProperty);
+        properties.put(PARAM_PLACE, placeProperty);
+        return properties;
+    }
+
+    @Override
+    public List<String> getRequiredProperties() {
+        List<String> required = new ArrayList<>();
+        required.add(PARAM_CITY);
+        required.add(PARAM_PLACE);
+        return required;
+    }
+
+    @Override
+    public ToolOut doInvoke(String user, FunctionCall call) {
         try{
-
-            List<Place> places = locationService.queryPlace(queries[0], queries[1]); 
-            String resp = "Could not find any location.";
+            String place = call.getParsedArguments().get(PARAM_PLACE);
+            String city = call.getParsedArguments().get(PARAM_CITY);
+            List<Place> places = locationService.queryPlace(place, city); 
             if(places == null || places.isEmpty()){
                 return onEmptyResult(user);
             }
-            resp = "The following location is found: ";
+            List<LocationOutput> locations = new ArrayList<>();
             int n = 0;
             for(Place p : places){
                 if(n++ >= this.number){
                     break;
                 }
-                resp = resp + p.getName() + ", address: " ;
-                if(!StringUtil.isNullOrEmpty(p.getProvince())){
-                    resp = resp + p.getProvince();
-                }
-             
-                resp = resp + p.getAddress() + ", ";
-    
-                if(p.getLocation() != null){
-                    resp = resp + "location(latitude,longitude): (" + p.getLocation().getLat() + ", " + p.getLocation().getLng() + "), location link: " + p.getUrl();
-                }
-    
-                resp = resp + "\n";
+
+                LocationOutput output = new LocationOutput();
+                output.setName(p.getName());
+                output.setAddress(p.getAddress());
+                output.setCity(p.getCity());
+                output.setProvince(p.getProvince());
+                output.setLocation(p.getLocation());
+                output.setLink(p.getUrl());
+                locations.add(output);
             }
-            return onResult(user, resp);
+            return onResult(user, JsonUtils.fromList(locations));
         }catch(Exception e){
             return onToolError(user);
         }
     }
 
-    
+    @Data
+    @NoArgsConstructor
+    public static class LocationOutput{
+        String name;
+        Location location;
+        String province;
+        String city;
+        String address;
+        String link;
+    }
 }

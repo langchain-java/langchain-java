@@ -5,13 +5,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.theokanning.openai.completion.chat.ChatMessage;
+import im.langchainjava.llm.entity.ChatMessage;
+import im.langchainjava.llm.entity.function.FunctionCall;
+import im.langchainjava.utils.JsonUtils;
 
 public class BasicChatMemory implements ChatMemoryProvider{
 
     public static String ROLE_SYSTEM="system";
     public static String ROLE_USER="user";
     public static String ROLE_ASSIS="assistant";
+    public static String ROLE_FUNC="function";
     
     private Map<String, ChatMemory> chats = new ConcurrentHashMap<>();
 
@@ -65,11 +68,6 @@ public class BasicChatMemory implements ChatMemoryProvider{
     }
 
     @Override
-    public void addEndingMessage(String user, String message) {
-        getMemory(user).addEndingMessageForRole(ROLE_SYSTEM, message);
-    }
-
-    @Override
     public void onReceiveSystemMessage(String user, String message) {
         System.out.println(ROLE_SYSTEM+ ":\t" + message);
         getMemory(user).addPendingMessageForRole(ROLE_SYSTEM, message);
@@ -81,10 +79,22 @@ public class BasicChatMemory implements ChatMemoryProvider{
         getMemory(user).addPendingMessageForRole(ROLE_ASSIS, message);
     }
 
+    @Override
+    public void onReceiveFunctionCall(String user, FunctionCall message){
+        System.out.println(ROLE_ASSIS + ":\t" + JsonUtils.fromObject(message));
+        getMemory(user).addPendingMessageForRole(ROLE_ASSIS, "none", message, user);
+    }
 
     @Override
-    public void onAssistantResponsed(String user, String message) {
-        getMemory(user).drainPendingMessagesToHist(true);
+    public void onReceiveFunctionCallResult(String user, String message){
+        System.out.println(ROLE_FUNC + ":\t" + message);
+        getMemory(user).addPendingMessageForRole(ROLE_FUNC, message, user);
+    }
+
+
+    @Override
+    public void onAssistantResponsed(String user) {
+        getMemory(user).drainPendingMessagesToHist(true, ROLE_FUNC);
         getMemory(user).getEnding().clear();
     }
 

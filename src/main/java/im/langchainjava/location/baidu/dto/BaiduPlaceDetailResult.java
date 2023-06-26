@@ -21,5 +21,5 @@ public class BaiduPlaceDetailResult {
     String city;
     String area;
     @JsonProperty("detail_info")
-    BaiduPlaceDetainInfo detailInfo;
+    BaiduPlaceDetailInfo detailInfo;
 }

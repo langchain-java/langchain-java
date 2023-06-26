@@ -2,11 +2,14 @@ package im.langchainjava.prompt;
 
 import java.util.List;
 
-import com.theokanning.openai.completion.chat.ChatMessage;
+import im.langchainjava.llm.entity.ChatMessage;
+import im.langchainjava.llm.entity.function.Function;
 
 public interface ChatPromptProvider {
     
     public List<ChatMessage> getPrompt(String user);
+
+    public List<Function> getFunctions(String user);
 
     public static String grabChatString(List<ChatMessage> chats){
         StringBuilder sb = new StringBuilder();
