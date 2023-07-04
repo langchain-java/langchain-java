@@ -17,6 +17,8 @@ public class FarewellTool extends BasicTool{
 
     public static String PARAM_MSG = "message";
 
+    public static String PARAM_EXP = "example";
+
     ImService im;
 
     List<Tool> tools;
@@ -34,19 +36,21 @@ public class FarewellTool extends BasicTool{
 
     @Override
     public String getDescription() {
-        return " always use this function if user's intention is to farewell. Never farewell the user if user's intention is not farewell. " ; 
+        return "Use this function to end a conversation with the user. " ; 
     }
 
 
     @Override
     public Map<String, FunctionProperty> getProperties() {
         FunctionProperty fp = FunctionProperty.builder()
-                .description("A fully formed farewell message in Chinese to the user, "
-                        + " followed by [提示: some examples of user's next input]. "
-                        + " Sample: fare well message to the user [提示: some examples of user's next input]")
+                .description("A fully formed farewell message in Chinese to the user.")
                 .build();
-        Map<String, FunctionProperty> properties = new HashMap<>();
-        properties.put(PARAM_MSG, fp);
+                Map<String, FunctionProperty> properties = new HashMap<>();
+                properties.put(PARAM_MSG, fp);
+        FunctionProperty fp2 = FunctionProperty.builder()
+                .description("User's top 3 most possible input in Chinese.")
+                .build();
+        properties.put(PARAM_EXP, fp2);
         return properties;
     }
 
@@ -64,6 +68,11 @@ public class FarewellTool extends BasicTool{
         String message = functionCall.getParsedArguments().get(PARAM_MSG);
         if(StringUtil.isNullOrEmpty(message)){
             message = MSG;
+        }
+
+        String prompt = functionCall.getParsedArguments().get(PARAM_EXP);
+        if(!StringUtil.isNullOrEmpty(prompt)){
+            message = message + "\n" + prompt;
         }
         im.sendMessageToUser(user, message);
         clear(user);

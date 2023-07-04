@@ -7,7 +7,7 @@ import java.util.function.Function;
 
 import im.langchainjava.agent.AsyncAgent.TriggerInput;
 import im.langchainjava.agent.exception.FunctionCallException;
-import im.langchainjava.agent.mrklagent.OneRoundMrklAgent;
+import im.langchainjava.agent.mrklagent.ZeroShotThoughtChainAgent;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.llm.entity.function.FunctionParameter;
 import im.langchainjava.llm.entity.function.FunctionProperty;
@@ -260,7 +260,7 @@ public abstract class BasicTool implements Tool {
         return doInvoke(user, call);
     }
 
-    public void registerTool(OneRoundMrklAgent agent){
+    public void registerTool(ZeroShotThoughtChainAgent agent){
         agent.registerTrigger(new ToolCallback());
     }
 

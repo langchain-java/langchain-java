@@ -11,10 +11,13 @@ import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.tool.BasicTool;
 import im.langchainjava.utils.JsonUtils;
+import im.langchainjava.utils.StringUtil;
 
 public class AskUserTool extends BasicTool{
 
     private static String PARAM_QUERY="query";
+
+    public static String PARAM_EXP = "example";
 
     ImService wechat;
 
@@ -36,12 +39,15 @@ public class AskUserTool extends BasicTool{
     @Override
     public Map<String, FunctionProperty> getProperties() {
         FunctionProperty fp = FunctionProperty.builder()
-                .description("A fully formed question to the user in Chinese, "
-                        + " followed by `[提示: some options and examples of user's next input in Chinese]`. "
-                        + " Sample: things to query the user in Chinese. [提示: examples of user's next input in Chinese].")
+                .description("A fully formed question to the user in Chinese.")
                 .build();
         Map<String, FunctionProperty> properties = new HashMap<>();
         properties.put(PARAM_QUERY, fp);
+        FunctionProperty fp2 = FunctionProperty.builder()
+                .description("User's top 3 most possible input in Chinese.")
+                .build();
+        properties.put(PARAM_EXP, fp2);
+
         return properties;
     }
 
@@ -55,6 +61,11 @@ public class AskUserTool extends BasicTool{
     @Override
     public ToolOut doInvoke(String user, FunctionCall call) {
         String message = call.getParsedArguments().get(PARAM_QUERY);
+
+        String prompt = call.getParsedArguments().get(PARAM_EXP);
+        if(!StringUtil.isNullOrEmpty(prompt)){
+            message = message + "\n" + prompt;
+        }
         wechat.sendMessageToUser(user, message);
         return waitUserInput(user);
     }

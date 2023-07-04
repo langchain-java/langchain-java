@@ -21,11 +21,11 @@ public class BasicChatPromptProvider implements ChatPromptProvider {
         this.memoryProvider = memory;
     }
 
-    public String getPrefix(){
+    private String getPrefix(){
         return "You are AI assistant.";
     }
 
-    public String getSubfix(){
+    private String getSubfix(){
         return "Now answer the following question:\n";
     }
 

@@ -19,13 +19,13 @@ import im.langchainjava.tool.Tool.ToolOut;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class OneRoundMrklAgent extends MemoryAgent{
+public class ZeroShotThoughtChainAgent extends MemoryAgent{
 
     ImService wechatService;
 
     Map<String, Tool> tools;
 
-    public OneRoundMrklAgent(LlmService llm, ChatPromptProvider prompt, ChatMemoryProvider memory, ImService wechat, CommandParser cp, List<Tool> tools) {
+    public ZeroShotThoughtChainAgent(LlmService llm, ChatPromptProvider prompt, ChatMemoryProvider memory, ImService wechat, CommandParser cp, List<Tool> tools) {
         super(llm, prompt, memory, cp);
         this.wechatService = wechat;
         this.tools = new HashMap<>();

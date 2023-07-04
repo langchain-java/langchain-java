@@ -10,10 +10,13 @@ import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.tool.BasicTool;
+import im.langchainjava.utils.StringUtil;
 
 public class InformUserTool extends BasicTool{
 
     private static String PARAM_MSG = "message";
+
+    public static String PARAM_EXP = "example";
 
     ImService wechat;
 
@@ -52,6 +55,11 @@ public class InformUserTool extends BasicTool{
                 .build();
         Map<String, FunctionProperty> properties = new HashMap<>();
         properties.put(PARAM_MSG, fp);
+        FunctionProperty fp2 = FunctionProperty.builder()
+                .description("User's top 3 most possible input in Chinese.")
+                .build();
+        properties.put(PARAM_EXP, fp2);
+
         return properties;
     }
 
@@ -65,6 +73,12 @@ public class InformUserTool extends BasicTool{
     @Override
     public ToolOut doInvoke(String user, FunctionCall call) {
         String message = call.getParsedArguments().get(PARAM_MSG);
+
+        String prompt = call.getParsedArguments().get(PARAM_EXP);
+        if(!StringUtil.isNullOrEmpty(prompt)){
+            message = message + "\n" + prompt;
+        }
+        
         wechat.sendMessageToUser(user, message);
         return waitUserInput(user);
     }
