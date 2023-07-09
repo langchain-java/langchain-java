@@ -63,7 +63,7 @@ public class VectorStoreTool extends BasicTool{
 
     @Override
     public ToolOut doInvoke(String user, FunctionCall call) {
-        String query = call.getParsedArguments().get(PARAM_QUERY);
+        String query = call.getParsedArguments().get(PARAM_QUERY).asText();
         List<Document> docs = this.vectorStore.similaritySearch(user, query, 5); 
         if(docs == null || docs.isEmpty()){ 
             return null;

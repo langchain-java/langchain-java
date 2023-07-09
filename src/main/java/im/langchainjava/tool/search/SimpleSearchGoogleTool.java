@@ -73,7 +73,7 @@ public class SimpleSearchGoogleTool extends BasicTool{
 
     @Override
     public ToolOut doInvoke(String user, FunctionCall call) {
-        String query = call.getParsedArguments().get(PARAM_QUERY);
+        String query = call.getParsedArguments().get(PARAM_QUERY).asText();
         try{
             List<SearchResultItem> results = searchService.search(query, 1, number); 
             String resp = "Could not find any result.";

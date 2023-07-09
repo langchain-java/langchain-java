@@ -44,4 +44,10 @@ public class BasicChatPromptProvider implements ChatPromptProvider {
     public List<Function> getFunctions(String user) {
         return null;
     }
+
+    @Override
+    public List<ChatMessage> getFunctionCallPrompt(String user, String message) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getFunctionCallPrompt'");
+    }
 }

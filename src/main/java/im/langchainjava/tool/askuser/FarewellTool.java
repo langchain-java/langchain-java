@@ -17,7 +17,10 @@ public class FarewellTool extends BasicTool{
 
     public static String PARAM_MSG = "message";
 
-    public static String PARAM_EXP = "example";
+    public static String PARAM_EXP_1 = "example1";
+    public static String PARAM_EXP_2 = "example2";
+    public static String PARAM_EXP_3 = "example3";
+
 
     ImService im;
 
@@ -47,10 +50,18 @@ public class FarewellTool extends BasicTool{
                 .build();
                 Map<String, FunctionProperty> properties = new HashMap<>();
                 properties.put(PARAM_MSG, fp);
-        FunctionProperty fp2 = FunctionProperty.builder()
-                .description("User's top 3 most possible input in Chinese.")
+        FunctionProperty exp1 = FunctionProperty.builder()
+                .description("User's 1st most possible next question in Chinese.")
                 .build();
-        properties.put(PARAM_EXP, fp2);
+        properties.put(PARAM_EXP_1, exp1);
+        FunctionProperty exp2 = FunctionProperty.builder()
+                .description("User's 2nd most possible next question in Chinese.")
+                .build();
+        properties.put(PARAM_EXP_2, exp2);
+        FunctionProperty exp3 = FunctionProperty.builder()
+                .description("User's 3rd most possible next question in Chinese.")
+                .build();
+        properties.put(PARAM_EXP_3, exp3);
         return properties;
     }
 
@@ -58,6 +69,9 @@ public class FarewellTool extends BasicTool{
     public List<String> getRequiredProperties() {
         List<String> required = new ArrayList<>();
         required.add(PARAM_MSG);
+        required.add(PARAM_EXP_1);
+        required.add(PARAM_EXP_2);
+        required.add(PARAM_EXP_3);
         return required;
     }
 
@@ -65,14 +79,32 @@ public class FarewellTool extends BasicTool{
 
     @Override
     public ToolOut doInvoke(String user, FunctionCall functionCall) {
-        String message = functionCall.getParsedArguments().get(PARAM_MSG);
+        String message = functionCall.getParsedArguments().get(PARAM_MSG).asText();
         if(StringUtil.isNullOrEmpty(message)){
             message = MSG;
         }
+        List<String> prompts = new ArrayList<>();
 
-        String prompt = functionCall.getParsedArguments().get(PARAM_EXP);
-        if(!StringUtil.isNullOrEmpty(prompt)){
-            message = message + "\n" + prompt;
+        String prompt1 = functionCall.getParsedArguments().get(PARAM_EXP_1).asText();
+        if(!StringUtil.isNullOrEmpty(prompt1)){
+            prompts.add(prompt1);
+        }
+
+        String prompt2 = functionCall.getParsedArguments().get(PARAM_EXP_2).asText();
+        if(!StringUtil.isNullOrEmpty(prompt2)){
+            prompts.add(prompt2);
+        }
+        
+        String prompt3 = functionCall.getParsedArguments().get(PARAM_EXP_3).asText();
+        if(!StringUtil.isNullOrEmpty(prompt3)){
+            prompts.add(prompt3);
+        }
+        
+        if(!prompts.isEmpty()){
+            message = message + "\n您可以试下这样问我：\n";
+            for(String prompt : prompts){
+                message = message + prompt + "\r\n";
+            }
         }
         im.sendMessageToUser(user, message);
         clear(user);

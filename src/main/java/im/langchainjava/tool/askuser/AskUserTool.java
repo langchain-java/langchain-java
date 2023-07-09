@@ -60,9 +60,9 @@ public class AskUserTool extends BasicTool{
 
     @Override
     public ToolOut doInvoke(String user, FunctionCall call) {
-        String message = call.getParsedArguments().get(PARAM_QUERY);
+        String message = call.getParsedArguments().get(PARAM_QUERY).asText();
 
-        String prompt = call.getParsedArguments().get(PARAM_EXP);
+        String prompt = call.getParsedArguments().get(PARAM_EXP).asText();
         if(!StringUtil.isNullOrEmpty(prompt)){
             message = message + "\n" + prompt;
         }

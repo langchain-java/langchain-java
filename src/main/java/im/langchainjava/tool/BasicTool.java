@@ -251,8 +251,8 @@ public abstract class BasicTool implements Tool {
                 if(!call.getParsedArguments().containsKey(r)){
                     return invalidParameter(user, "Missing required parameter " + r + ".");
                 }
-                if(StringUtil.isNullOrEmpty(call.getParsedArguments().get(r))){
-                    return invalidParameter(user, "Required parameter " + r + " is null or empty.");
+                if(call.getParsedArguments().get(r).asText() == null){
+                    return invalidParameter(user, "Required parameter " + r + " is null.");
                 }
             }
         }

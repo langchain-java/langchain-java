@@ -15,7 +15,6 @@ import im.langchainjava.location.LocationService.Place;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.tool.BasicTool;
 import im.langchainjava.utils.JsonUtils;
-import im.langchainjava.utils.StringUtil;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -54,8 +53,7 @@ public class SimpleLocationTool extends BasicTool{
 
     @Override
     public String getDescription() {
-        return "Only use this function when the user's intention is getting the location (or address) of a specific place. "
-            + " Never use this function to search for attractions, shops or restaurants.";
+        return "This function is used for looking up the address lines of a given place. ";
     }
 
     @Override
@@ -83,8 +81,8 @@ public class SimpleLocationTool extends BasicTool{
     @Override
     public ToolOut doInvoke(String user, FunctionCall call) {
         try{
-            String place = call.getParsedArguments().get(PARAM_PLACE);
-            String city = call.getParsedArguments().get(PARAM_CITY);
+            String place = call.getParsedArguments().get(PARAM_PLACE).asText();
+            String city = call.getParsedArguments().get(PARAM_CITY).asText();
             List<Place> places = locationService.queryPlace(place, city); 
             if(places == null || places.isEmpty()){
                 return onEmptyResult(user);

@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>im.langchainjava</groupId>
   <artifactId>langchainjava</artifactId>
-  <version>1.5.4-SNAPSHOT</version>
+  <version>1.5.13.f-SNAPSHOT</version>
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>

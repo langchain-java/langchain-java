@@ -6,6 +6,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -18,6 +19,15 @@ public class JsonUtils {
     public static Map<String,String> toMapOf(String json){
         try {
             return mapper.readerForMapOf(String.class).readValue(json);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public static Map<String,JsonNode> toMapOfJsonNode(String json){
+        try {
+            return mapper.readerForMapOf(JsonNode.class).readValue(json);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
             return null;

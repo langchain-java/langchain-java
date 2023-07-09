@@ -3,6 +3,7 @@ package im.langchainjava.llm.entity.function;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,5 +18,5 @@ public class FunctionCall {
     String name;
     String arguments;
     @JsonIgnore
-    Map<String, String> parsedArguments;
+    Map<String, JsonNode> parsedArguments;
 }

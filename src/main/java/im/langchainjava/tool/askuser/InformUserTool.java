@@ -72,9 +72,9 @@ public class InformUserTool extends BasicTool{
 
     @Override
     public ToolOut doInvoke(String user, FunctionCall call) {
-        String message = call.getParsedArguments().get(PARAM_MSG);
+        String message = call.getParsedArguments().get(PARAM_MSG).asText();
 
-        String prompt = call.getParsedArguments().get(PARAM_EXP);
+        String prompt = call.getParsedArguments().get(PARAM_EXP).asText();
         if(!StringUtil.isNullOrEmpty(prompt)){
             message = message + "\n" + prompt;
         }

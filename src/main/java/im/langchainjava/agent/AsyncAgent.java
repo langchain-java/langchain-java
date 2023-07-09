@@ -134,7 +134,11 @@ public abstract class AsyncAgent {
             for(Function<TriggerInput, Void> trigger : this.triggers){
                 trigger.apply(new TriggerInput(user, message)); 
             }
-            chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user), promptProvider.getFunctions(user), errorHandler);
+            // chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user), promptProvider.getFunctions(user), errorHandler);
+            ChatMessage level1Resp = llm.chatCompletion(user, promptProvider.getPrompt(user), null, errorHandler);
+            log.info(level1Resp.getContent());
+            chatMessage = llm.chatCompletion(user, promptProvider.getFunctionCallPrompt(user, level1Resp.getContent()), promptProvider.getFunctions(user), errorHandler);
+            
             if(chatMessage == null){
                 if(errorHandler.getFailure() != null){
                     if(errorHandler.getFailure().getCode() != null 

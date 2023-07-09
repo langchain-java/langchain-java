@@ -2,6 +2,8 @@ package im.langchainjava.agent;
 
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import im.langchainjava.agent.command.CommandParser;
 import im.langchainjava.agent.exception.FunctionCallException;
 import im.langchainjava.llm.LlmService;
@@ -34,9 +36,9 @@ public abstract class FunctionCallAgent extends CommandAgent{
             try{
                 FunctionCall call = response.getFunctionCall();
                 String rawArguments = call.getArguments();
-                Map<String, String> params = null;
+                Map<String, JsonNode> params = null;
                 if(!StringUtil.isNullOrEmpty(rawArguments)){
-                    params = JsonUtils.toMapOf(rawArguments);
+                    params = JsonUtils.toMapOfJsonNode(rawArguments);
                     if(params == null){
                         return onFunctionCallException(user, null, new FunctionCallException("Could not parse parameters for function " + call.getName() + "."));
                     }
