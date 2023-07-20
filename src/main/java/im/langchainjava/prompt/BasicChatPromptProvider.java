@@ -29,6 +29,10 @@ public class BasicChatPromptProvider implements ChatPromptProvider {
         return "Now answer the following question:\n";
     }
 
+    public List<ChatMessage> getChatHistory(String user){
+        return this.memoryProvider.getPrompt(user);
+    }
+
     @Override
     public List<ChatMessage> getPrompt(String user) {
         List<ChatMessage> chats = new ArrayList<>();

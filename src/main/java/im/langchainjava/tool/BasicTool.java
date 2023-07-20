@@ -1,20 +1,25 @@
 package im.langchainjava.tool;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
-import im.langchainjava.agent.AsyncAgent.TriggerInput;
+import com.fasterxml.jackson.databind.JsonNode;
+
 import im.langchainjava.agent.exception.FunctionCallException;
-import im.langchainjava.agent.mrklagent.ZeroShotThoughtChainAgent;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.llm.entity.function.FunctionParameter;
 import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.memory.ChatMemoryProvider;
+import im.langchainjava.tool.ControllorToolOut.Action;
+import im.langchainjava.utils.JsonUtils;
 import im.langchainjava.utils.StringUtil;
 
 public abstract class BasicTool implements Tool {
+
+    public static String KEY_FUNC_OUT = "Function";
+    public static String KEY_THOUGHT = "Thought";
+    public static String KEY_CONTROL = "Control";
+
 
     public static String PARAMETER_TYPE_OBJECT = "object";
 
@@ -38,7 +43,7 @@ public abstract class BasicTool implements Tool {
     List<String> required;
 
     final public ChatMemoryProvider memoryProvider;
-    final Map<String,AsyncToolOut> users = new HashMap<>();
+    // final Map<String,AsyncToolOut> users = new HashMap<>();
 
     public abstract String getName();
     public abstract String getDescription();
@@ -60,18 +65,18 @@ public abstract class BasicTool implements Tool {
         this.required = null;
     }
 
-    public class ToolCallback implements Function<TriggerInput, Void>{
-        @Override
-        public Void apply(TriggerInput input) {
-            if(users.getOrDefault(input.getUser(), null)!=null){
-                memoryProvider.onAssistantResponsed(input.getUser());
-                memoryProvider.onAssistantResponsed(input.getUser());
-                users.get(input.getUser()).applyLater(input);
-                users.remove(input.getUser());
-            }
-            return null;
-        }
-    } 
+    // public class ToolCallback implements Function<TriggerInput, Void>{
+    //     @Override
+    //     public Void apply(TriggerInput input) {
+    //         if(users.getOrDefault(input.getUser(), null)!=null){
+    //             memoryProvider.onAssistantResponsed(input.getUser());
+    //             memoryProvider.onAssistantResponsed(input.getUser());
+    //             users.get(input.getUser()).applyLater(input);
+    //             users.remove(input.getUser());
+    //         }
+    //         return null;
+    //     }
+    // } 
 
     public BasicTool description(String desc){
         this.desc = desc;
@@ -182,51 +187,78 @@ public abstract class BasicTool implements Tool {
     }
 
     public ToolOut invalidParameter(String user, String message){
-        return ToolOuts.of(user, true)
-                        .message(Tool.KEY_OBSERVATION, getObservationOnInvalidParameter(message))
-                        .message(Tool.KEY_THOUGHT, getThoughtOnInvalidParameter())
-                        .sync();
+        return ToolOuts.of(user)
+                        .message(KEY_FUNC_OUT, getObservationOnInvalidParameter(message))
+                        .message(KEY_THOUGHT, getThoughtOnInvalidParameter())
+                        .get();
     }
 
-    public AsyncToolOut waitUserInput(String user){
-        AsyncToolOut out = ToolOuts.of(user, false)
-                            .message(KEY_OBSERVATION, "")
-                            .async();
-        this.users.put(user, out);
-        return out;
-    }
+    // public ToolOut waitUserInput(String user){
+    //     ToolOut out = ToolOuts.of(user, false)
+    //                         .message(KEY_FUNC_OUT, "")
+    //                         .sync();
+    //     // this.users.put(user, out);
+    //     return out;
+    // }
 
     public ToolOut onResult(String user, String result){
-        return ToolOuts.of(user, true)
-                        .message(Tool.KEY_OBSERVATION, result)
-                        .message(Tool.KEY_THOUGHT, getThought())
-                        .sync();
+        return ToolOuts.of(user)
+                        .message(KEY_FUNC_OUT, result)
+                        .message(KEY_THOUGHT, getThought())
+                        .get();
     }
 
+    // public ToolOut onDisclosedResult(String user, String result, String disclosedResult){
+    //     return ToolOuts.of(user, true)
+    //                     .message(Tool.KEY_FUNC_OUT, result)
+    //                     .message(Tool.KEY_THOUGHT, getThought())
+    //                     .message(Tool.KEY_DISCLOSE, disclosedResult)
+    //                     .sync();
+    // }
+
     public ToolOut onToolError(String user){
-        return ToolOuts.of(user, true)
-                        .message(Tool.KEY_OBSERVATION, getObservationOnError())
-                        .message(Tool.KEY_THOUGHT, getThoughtOnError())
-                        .sync();
+        return ToolOuts.of(user)
+                        .message(KEY_FUNC_OUT, getObservationOnError())
+                        .message(KEY_THOUGHT, getThoughtOnError())
+                        .get();
     }
 
     public ToolOut onEmptyResult(String user){
-        return ToolOuts.of(user, true)
-                        .message(Tool.KEY_OBSERVATION, getObservationOnEmptyResult())
-                        .message(Tool.KEY_THOUGHT, getThoughtOnEmptyResult())
-                        .sync();
+        return ToolOuts.of(user)
+                        .message(KEY_FUNC_OUT, getObservationOnEmptyResult())
+                        .message(KEY_THOUGHT, getThoughtOnEmptyResult())
+                        .get();
+    }
+
+    public ToolOut onEmptyResult(String user, String message){
+        return ToolOuts.of(user)
+                        .message(KEY_FUNC_OUT, message)
+                        .message(KEY_THOUGHT, getThoughtOnEmptyResult())
+                        .get();
     }
 
     public ToolOut endConversation(String user, String message){
-        return ToolOuts.of(user, false)
-                        .message(Tool.KEY_OBSERVATION, message)
-                        .sync();
+        return ToolOuts.of(user, Action.endConversation)
+                        .message(KEY_CONTROL, message)
+                        .get();
     }
 
-    @Override
-    public void onClearedMemory(String user) {
-        this.users.remove(user);
+    public ToolOut next(String user, String message){
+        return ToolOuts.of(user, Action.next)
+                        .message(KEY_CONTROL, message)
+                        .get();
     }
+
+    public ToolOut waitUserInput(String user, String message){
+        return ToolOuts.of(user, Action.waitUserInput)
+                        .message(KEY_CONTROL, message)
+                        .get();
+    }
+
+    // @Override
+    // public void onClearedMemory(String user) {
+    //     // this.users.remove(user);
+    // }
 
     @Override
     final public im.langchainjava.llm.entity.function.Function getFunction(){
@@ -234,6 +266,13 @@ public abstract class BasicTool implements Tool {
                 .name(getName())
                 .description(getFunctionDescription())
                 .parameters(getFunctionParameters())
+                .build();
+    }
+    
+    @Override
+    final public im.langchainjava.llm.entity.function.FunctionCall getFunctionCall(){
+        return im.langchainjava.llm.entity.function.FunctionCall.builder()
+                .name(getName())
                 .build();
     }
 
@@ -245,6 +284,12 @@ public abstract class BasicTool implements Tool {
         if(!call.getName().equals(getName())){
             throw new FunctionCallException("The function name does not match function call. Function name is "+ getName() + " while the function call is " + call.getName() + "." );
         }
+        Map<String, JsonNode> params = parseFunctionCallParam(call);
+        if(params == null){
+            return invalidParameter(user, "Could not parse parameters for function " + call.getName() + ".");
+        }
+        call.setParsedArguments(params);
+
         List<String> requiredProperties = getFunctionRequiredProperties();
         if(requiredProperties != null && !requiredProperties.isEmpty() && call.getParsedArguments() != null){
             for(String r : requiredProperties){
@@ -260,8 +305,15 @@ public abstract class BasicTool implements Tool {
         return doInvoke(user, call);
     }
 
-    public void registerTool(ZeroShotThoughtChainAgent agent){
-        agent.registerTrigger(new ToolCallback());
+    private Map<String, JsonNode> parseFunctionCallParam(FunctionCall call){
+
+        String rawArguments = call.getArguments();
+        Map<String, JsonNode> params = null;
+        if(!StringUtil.isNullOrEmpty(rawArguments)){
+            params = JsonUtils.toMapOfJsonNode(rawArguments);
+        }
+
+        return params;
     }
 
 }

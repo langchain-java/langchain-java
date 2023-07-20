@@ -1,37 +1,28 @@
 package im.langchainjava.agent;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
-import im.langchainjava.agent.exception.AiResponseException;
+import im.langchainjava.llm.LlmErrorHandler;
 import im.langchainjava.llm.LlmService;
-import im.langchainjava.llm.entity.ChatCompletionFailure;
 import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.prompt.ChatPromptProvider;
 import im.langchainjava.utils.JsonUtils;
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import static im.langchainjava.memory.BasicChatMemory.ROLE_USER;
-
 @Slf4j
 @Getter
 @Setter
-public abstract class AsyncAgent {
+public abstract class AsyncAgent implements LlmErrorHandler{
 
     private static String MEMORY_KEY_RETRY = "retry";
     private static int MAX_RETRY = 3;
-
-    private static String CHAT_COMPLETION_FAILURE_CODE_TOKEN_LENGTH_EXCEED = "context_length_exceeded";
 
     ChatPromptProvider promptProvider;
 
@@ -39,15 +30,17 @@ public abstract class AsyncAgent {
 
     LlmService llm;
 
-    private List<Function<TriggerInput, Void>> triggers = new ArrayList<>();
+    boolean showPrompt = false;
+
+    // private List<Function<TriggerInput, Void>> triggers = new ArrayList<>();
 
     private LinkedBlockingQueue<String> waiting = new LinkedBlockingQueue<>(); 
 
     private LinkedBlockingQueue<String> processing = new LinkedBlockingQueue<>(); 
 
-    public void registerTrigger(Function<TriggerInput,Void> function){
-        this.triggers.add(function);
-    }
+    // public void registerTrigger(Function<TriggerInput,Void> function){
+    //     this.triggers.add(function);
+    // }
     
     public AsyncAgent(ChatPromptProvider prompt, ChatMemoryProvider memory, LlmService llm){
         this.promptProvider = prompt;
@@ -61,10 +54,6 @@ public abstract class AsyncAgent {
     public abstract boolean onAiResponse(String user, ChatMessage response);
 
     public abstract void onUserMessageAtBusyTime(String user, String text);
-
-    public abstract void onAiException(String user, Exception e);
-
-    public abstract void onMaxTokenExceeded(String user);
 
     public void chat(String user, String message){
         if(waiting.contains(user) || processing.contains(user)){
@@ -117,55 +106,20 @@ public abstract class AsyncAgent {
     private void doChat(String user){
         ChatMessage chatMessage = null;
         
-        do{
-            ChatCompletionErrorHandler errorHandler = new ChatCompletionErrorHandler(user, null);
-            List<ChatMessage> messages = memoryProvider.getPendingMessage(user);
-            log.info("The pending message in memory # is:" + messages.size());
-            if(messages.isEmpty()){
-                break;
-            }
-            StringBuilder sb = new StringBuilder();
-            for(ChatMessage m : messages){
-                if(m.getRole().equals(ROLE_USER)){
-                    sb.append(m.getContent()).append("\n");
-                }
-            }
-            String message = sb.toString();
-            for(Function<TriggerInput, Void> trigger : this.triggers){
-                trigger.apply(new TriggerInput(user, message)); 
-            }
-            // chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user), promptProvider.getFunctions(user), errorHandler);
-            ChatMessage level1Resp = llm.chatCompletion(user, promptProvider.getPrompt(user), null, errorHandler);
-            log.info(level1Resp.getContent());
-            chatMessage = llm.chatCompletion(user, promptProvider.getFunctionCallPrompt(user, level1Resp.getContent()), promptProvider.getFunctions(user), errorHandler);
-            
-            if(chatMessage == null){
-                if(errorHandler.getFailure() != null){
-                    if(errorHandler.getFailure().getCode() != null 
-                            && errorHandler.getFailure().getCode().equals(CHAT_COMPLETION_FAILURE_CODE_TOKEN_LENGTH_EXCEED)){
-                        log.info("Llm max token exceeded!");
-                        onMaxTokenExceeded(user);
-                        break;
-                    }
-                    onAiException(user, new AiResponseException(errorHandler.getFailure().getMessage()));
-                    break;
-                }
-                log.info("Llm service returns null!");
-                onAiException(user, new AiResponseException("Llm response nothing."));
-                break;
-            }
-        }while(!onAiResponse(user, chatMessage));
-    }
+        while(true){
 
-    @Data
-    @AllArgsConstructor
-    public class ChatCompletionErrorHandler implements java.util.function.Function<ChatCompletionFailure, Void>{
-        String user;
-        ChatCompletionFailure failure = null; 
-        @Override
-        public Void apply(ChatCompletionFailure f) {
-            this.failure = f;
-            return null;
+            if(showPrompt){
+                showMessages(promptProvider.getPrompt(user));
+            }
+            chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user), promptProvider.getFunctions(user), null,  this);
+
+            if(chatMessage == null){
+                return;
+            }
+            
+            if(!onAiResponse(user, chatMessage)){
+                break;
+            }
         }
     }
 
@@ -194,11 +148,11 @@ public abstract class AsyncAgent {
         memoryProvider.setContextForUser(user, MEMORY_KEY_RETRY, Integer.valueOf(retry));
     }
 
-    @Getter
-    @AllArgsConstructor
-    public static class TriggerInput{
-        String user;
-        String message;
-    }
+    // @Getter
+    // @AllArgsConstructor
+    // public static class TriggerInput{
+    //     String user;
+    //     String message;
+    // }
 
 }

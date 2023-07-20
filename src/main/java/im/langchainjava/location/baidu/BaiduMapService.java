@@ -10,6 +10,7 @@ import im.langchainjava.location.baidu.dto.BaiduMapPlaceChild;
 import im.langchainjava.location.baidu.dto.BaiduPlaceDetail;
 import im.langchainjava.location.baidu.dto.BaiduPlaceResult;
 import im.langchainjava.location.baidu.dto.BaiduPlaceSuggestion;
+import im.langchainjava.utils.StringUtil;
 
 public class BaiduMapService implements LocationService{
 
@@ -25,17 +26,51 @@ public class BaiduMapService implements LocationService{
     private static String JSON = "json";
 
     @Override
-    public List<Place> queryPlace(String query, String city) {
-        String cityQuery = "";
-        if(city != null){
-            cityQuery = city.trim();
+    public List<Place> queryPlaceWithDetail(String query, String city) {
+        List<Place> places = queryPlace(query, city);
+
+        if(places != null){
+            for(Place p : places){
+                try{
+                    BaiduPlaceDetail detail = connector.getPlaceDetail(p.getUid(), JSON, 2, ak);
+                    if(detail != null && detail.getResult() != null && detail.getResult().getDetailInfo() != null && detail.getResult().getDetailInfo().getDetailUrl() != null){
+                        p.setUrl(detail.getResult().getDetailInfo().getDetailUrl());
+                    }
+                }catch(Exception e){
+                    e.printStackTrace();
+                }
+            }
         }
 
-        BaiduPlaceSuggestion suggest = connector.getPlaceSuggestions(query, cityQuery, true, ak, JSON);
+        return places;
+    }
+
+    @Override
+    public List<Place> queryPlace(String query, String region) {
+        String cityStr = region;
+        String queryStr = query;
+        if(!StringUtil.isNullOrEmpty(region)){
+            cityStr = region.trim();
+        }
+        // else{
+        //     region = query;
+        // }
+
+        // if(StringUtil.isNullOrEmpty(query)){
+        //     queryStr = cityStr;
+        // }
+
+        BaiduPlaceSuggestion suggest = null;
         List<Place> places = new ArrayList<>();
+        try{
+            suggest = connector.getPlaceSuggestions(queryStr, cityStr, false, ak, JSON);
+        }catch(Exception e){
+            return places;
+        }
+
         if(suggest!=null && suggest.getStatus() == STATUS_SUCCESS && suggest.getResult() != null){
             for(BaiduPlaceResult r : suggest.getResult()){
-                if(!r.getCity().startsWith(cityQuery) && !cityQuery.startsWith(r.getCity())){
+                if(!r.getCity().startsWith(cityStr) && !cityStr.startsWith(r.getCity())){
                     continue;
                 }
 
@@ -46,13 +81,7 @@ public class BaiduMapService implements LocationService{
                         children.add(c);
                     }
                 }
-
-                BaiduPlaceDetail detail = connector.getPlaceDetail(r.getUid(), JSON, 2, ak);
                 Place p = new Place();
-
-                if(detail != null && detail.getResult() != null && detail.getResult().getDetailInfo() != null && detail.getResult().getDetailInfo().getDetailUrl() != null){
-                    p.setUrl(detail.getResult().getDetailInfo().getDetailUrl());
-                }
                 p.setUid(r.getUid());
                 p.setAddress(r.getAddress());
                 p.setCity(r.getCity());

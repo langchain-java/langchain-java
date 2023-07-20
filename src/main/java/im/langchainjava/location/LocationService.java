@@ -38,6 +38,8 @@ public interface LocationService {
         String url;
     }
 
+    public List<Place> queryPlaceWithDetail(String query, String city);
+
     public List<Place> queryPlace(String query, String city);
 
 }

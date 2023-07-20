@@ -94,7 +94,7 @@ public class BasicChatMemory implements ChatMemoryProvider{
 
     @Override
     public void onAssistantResponsed(String user) {
-        getMemory(user).drainPendingMessagesToHist(true, ROLE_FUNC);
+        getMemory(user).drainPendingMessagesToHist(false, ROLE_FUNC);
         getMemory(user).getEnding().clear();
     }
 
