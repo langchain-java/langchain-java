@@ -35,20 +35,26 @@ public abstract class FunctionCallAgent extends CommandAgent{
     Map<String, Tool> tools;
 
     @Override
-    public boolean onAiResponse(String user, ChatMessage response){
+    public boolean onAiResponse(String user, ChatMessage message){
 
-        if(response.getFunctionCall() != null){
-            if(response.)
-            try{
-                FunctionCall call = response.getFunctionCall();
-                callFunction(user, call);
-            }catch(Exception e){
-                onFunctionCallException(user, null, e);
+        if(message.getFunctionCall() != null){
+            FunctionCall call = message.getFunctionCall();
+
+            if(this.tools.containsKey(call.getName())){
+                try{
+                    callFunction(user, call);
+                }catch(Exception e){
+                    onFunctionCallException(user, null, e);
+                }
+            }else{
+                onFunctionCallException(user, null, new FunctionCallException("Function " + call.getName() + " does not exist."));
             }
-            return onConntrolle
+        }else{
+            onAssistantMessage(user, message.getContent());
         }
+
+        return onAssistantResponsed(user, );
         
-        onAssistantMessage(user, response.getContent());
     }
 
 
@@ -58,12 +64,12 @@ public abstract class FunctionCallAgent extends CommandAgent{
             Tool t = this.tools.get(functionCall.getName());
             ToolOut toolOut = t.invoke(user, functionCall);
             if(toolOut == null){
-                return onFunctionCallException(user, t, new FunctionCallException("Function call "+ t.getFunction().getName() + " returns null!"));
+                onFunctionCallException(user, t, new FunctionCallException("Function call "+ t.getFunction().getName() + " returns null!"));
+                return;
             }
-            return onAssistantFunctionCall(user, functionCall, toolOut);
+            onAssistantFunctionCall(user, functionCall, toolOut);
+            return;
         }
-
-        return onFunctionCallException(user, null, new FunctionCallException("Function " + functionCall.getName() + " does not exist."));
     }
 
 
