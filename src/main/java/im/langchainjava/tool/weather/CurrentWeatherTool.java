@@ -33,8 +33,8 @@ public class CurrentWeatherTool extends BasicTool{
 
     // int number;
 
-    public CurrentWeatherTool(ChatMemoryProvider memory, ImService wechat, WeatherService weatherService, LlmService llm){
-        super(memory);
+    public CurrentWeatherTool(ImService wechat, WeatherService weatherService, LlmService llm){
+        // super(memory);
         this.wechat = wechat;
         this.weatherService = weatherService;
         // this.llm = llm;

@@ -43,8 +43,8 @@ public class SimpleLocationTool extends BasicTool{
 
     int number;
 
-    public SimpleLocationTool(ChatMemoryProvider memory, ImService wechat, LocationService location, LlmService llm){
-        super(memory);
+    public SimpleLocationTool(ImService wechat, LocationService location, LlmService llm){
+        // super(memory);
         this.wechat = wechat;
         this.locationService = location;
         this.llm = llm;

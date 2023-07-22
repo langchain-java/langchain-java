@@ -38,8 +38,8 @@ public class WeatherForecastTool extends BasicTool{
 
     // int number;
 
-    public WeatherForecastTool(ChatMemoryProvider memory, ImService wechat, WeatherService weatherService, LlmService llm){
-        super(memory);
+    public WeatherForecastTool(ImService wechat, WeatherService weatherService, LlmService llm){
+        // super(memory);
         this.wechat = wechat;
         this.weatherService = weatherService;
         // this.llm = llm;

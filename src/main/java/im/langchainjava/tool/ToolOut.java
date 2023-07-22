@@ -6,4 +6,5 @@ import im.langchainjava.tool.Tool.FunctionMessage;
 
 public interface ToolOut extends Runnable{
     public ToolOut handlerForKey(String key, Function<FunctionMessage, Void> fun);
+    public String getMessageForKey(String key);
 }

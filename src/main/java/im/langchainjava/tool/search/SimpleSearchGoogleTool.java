@@ -40,8 +40,8 @@ public class SimpleSearchGoogleTool extends BasicTool{
 
     int number;
 
-    public SimpleSearchGoogleTool(ChatMemoryProvider memory, ImService wechat, SearchService searchService, LlmService llm){
-        super(memory);
+    public SimpleSearchGoogleTool(ImService wechat, SearchService searchService, LlmService llm){
+        // super(memory);
         this.wechat = wechat;
         this.searchService = searchService;
         this.llm = llm;

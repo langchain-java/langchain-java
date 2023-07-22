@@ -111,6 +111,7 @@ public abstract class AsyncAgent implements LlmErrorHandler{
             if(showPrompt){
                 showMessages(promptProvider.getPrompt(user));
             }
+
             chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user), promptProvider.getFunctions(user), null,  this);
 
             if(chatMessage == null){

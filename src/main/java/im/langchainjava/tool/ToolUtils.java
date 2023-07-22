@@ -14,6 +14,16 @@ public class ToolUtils {
         return null;
     }
 
+    public static int getIntParam(FunctionCall call, String paramName){
+        if(call.getParsedArguments().containsKey(paramName)){
+            if(call.getParsedArguments().get(paramName).isNull()){
+                return 0;
+            }
+            return call.getParsedArguments().get(paramName).asInt(0);
+        }
+        return 0;
+    }
+
     public static boolean compareStringParam(FunctionCall call, String paramName, String value){
         if(value == null){
             return false;

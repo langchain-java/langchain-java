@@ -18,7 +18,8 @@ public abstract class BasicTool implements Tool {
 
     public static String KEY_FUNC_OUT = "Function";
     public static String KEY_THOUGHT = "Thought";
-    public static String KEY_CONTROL = "Control";
+    public static String KEY_CONTROL_SUMMARY = "Summary";
+    public static String KEY_CONTROL_ASK = "Ask";
 
 
     public static String PARAMETER_TYPE_OBJECT = "object";
@@ -42,7 +43,7 @@ public abstract class BasicTool implements Tool {
     Map<String, FunctionProperty> parameters;
     List<String> required;
 
-    final public ChatMemoryProvider memoryProvider;
+    // final public ChatMemoryProvider memoryProvider;
     // final Map<String,AsyncToolOut> users = new HashMap<>();
 
     public abstract String getName();
@@ -51,8 +52,8 @@ public abstract class BasicTool implements Tool {
     public abstract List<String> getRequiredProperties();
     public abstract ToolOut doInvoke(String user, FunctionCall call);
 
-    public BasicTool(ChatMemoryProvider memoryProvider){
-        this.memoryProvider = memoryProvider;
+    public BasicTool(){
+        // this.memoryProvider = memoryProvider;
         this.observationOnEmptyResult = null;
         this.observationOnError = null;
         this.observationOnInvalidParameter = null;
@@ -237,21 +238,24 @@ public abstract class BasicTool implements Tool {
                         .get();
     }
 
-    public ToolOut endConversation(String user, String message){
+    public ToolOut endConversation(String user, String message, String ask){
         return ToolOuts.of(user, Action.endConversation)
-                        .message(KEY_CONTROL, message)
+                        .message(KEY_CONTROL_SUMMARY, message)
+                        .message(KEY_CONTROL_ASK, ask)
                         .get();
     }
 
-    public ToolOut next(String user, String message){
+    public ToolOut next(String user, String message, String ask){
         return ToolOuts.of(user, Action.next)
-                        .message(KEY_CONTROL, message)
+                        .message(KEY_CONTROL_SUMMARY, message)
+                        .message(KEY_CONTROL_ASK, ask)
                         .get();
     }
 
-    public ToolOut waitUserInput(String user, String message){
+    public ToolOut waitUserInput(String user, String message, String ask){
         return ToolOuts.of(user, Action.waitUserInput)
-                        .message(KEY_CONTROL, message)
+                        .message(KEY_CONTROL_SUMMARY, message)
+                        .message(KEY_CONTROL_ASK, ask)
                         .get();
     }
 

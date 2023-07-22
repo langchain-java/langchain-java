@@ -30,8 +30,8 @@ public class DateTimeTool extends BasicTool{
 
     private static String PARAM_OFFSET = "date_offset";
 
-    public DateTimeTool(ChatMemoryProvider memory, ImService wechat){
-        super(memory);
+    public DateTimeTool(ImService wechat){
+        // super(memory);
         this.wechat = wechat;
     }
 

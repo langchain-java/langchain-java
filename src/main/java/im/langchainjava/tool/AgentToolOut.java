@@ -64,4 +64,13 @@ public class AgentToolOut implements ToolOut{
             fun.apply(input);
         }
     }
+
+
+    @Override
+    public String getMessageForKey(String key) {
+        if(this.handlerMap.get(key) != null){
+            this.handlerMap.get(key).getMessage();
+        }
+        return null;
+    }
 }

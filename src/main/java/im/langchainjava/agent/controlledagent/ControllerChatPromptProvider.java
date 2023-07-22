@@ -31,9 +31,11 @@ public abstract class ControllerChatPromptProvider extends BasicChatPromptProvid
                             .append("Your task is to observe the conversation and perform the following steps:\"\"\"\r\n")
                             .append("1. Extract user's requirement from the conversation.\r\n")
                             .append("2. Check if the requirement is fullfilled.\r\n")
-                            .append("3. If the requirement is fullfilled, put `end_conversation` to action field of the function call\r\n")
-                            .append("4. If the requirement is not fullfilled or partially fullfilled, or the assistant should try to make another function call, put `continue` to action field.\r\n\"\"\"")
-                            .append("5. If the requirement is not fullfilled after 2 function calls and the ai assistant don't know the final answer, put `end_conversation` to action field and put your own answer to the summary field.")
+                            .append("3. Count the number of times you have made a function call.\r\n")
+                            .append("4. Check weather the assistant has tried to answer the question with its own knowledge.\r\n")
+                            // .append("3. If the requirement is fullfilled, put `end_conversation` to action field of the function call\r\n")
+                            // .append("4. If the requirement is not fullfilled or partially fullfilled, or the assistant should try to make another function call, put `continue` to action field.\r\n\"\"\"")
+                            // .append("5. If the requirement is not fullfilled after 2 function calls and the ai assistant don't know the final answer, put `end_conversation` to action field and put your own answer to the summary field.")
                             .append("Don't make assumptions about what values to plug into the generate_prompt function. You should leave the field blank if you don't know what value to put.\r\n")
                             .toString();
         ChatMessage sysMsg = new ChatMessage(ROLE_SYSTEM, prompt);

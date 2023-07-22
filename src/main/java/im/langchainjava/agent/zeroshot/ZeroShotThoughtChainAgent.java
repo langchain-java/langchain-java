@@ -9,6 +9,7 @@ import im.langchainjava.agent.controlledagent.ControllerChatPromptProvider;
 import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.memory.ChatMemoryProvider;
+import im.langchainjava.tool.ControllorToolOut;
 import im.langchainjava.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,13 +22,12 @@ public class ZeroShotThoughtChainAgent extends ControlledAgent{
     public ZeroShotThoughtChainAgent(LlmService llm, ControllerChatPromptProvider prompt, ChatMemoryProvider memory, ImService wechat, CommandParser cp, List<Tool> tools) {
         super(llm, prompt, memory, cp, tools);
         this.wechatService = wechat;
-
     }
 
     @Override
     public void onCommand(String user, Command command) {
         if(command.getCommand().equals("clear")){
-            clear(user);
+            endConversation(user);
             return;
         }
         this.wechatService.sendMessageToUser(user, "[help]\n #clear: clears the chatbot memory.");
@@ -38,15 +38,9 @@ public class ZeroShotThoughtChainAgent extends ControlledAgent{
     }
 
    
-    private void clear(String user){
-        super.getMemoryProvider().reset(user);
-        wechatService.sendMessageToUser(user, "[系统]\n记忆已经清除，让我们重新开始聊天吧。");
-    }
-
     @Override
     public void onMaxRound(String user) {
         wechatService.sendMessageToUser(user, "[系统]\n小助手已经达到最大的交互数。");
-        clear(user);
     }
 
     @Override
@@ -62,14 +56,17 @@ public class ZeroShotThoughtChainAgent extends ControlledAgent{
     @Override
     public void onMaxTokenExceeded(String user) {
         wechatService.sendMessageToUser(user, "[系统]\n大模型记忆已经撑爆无法继续思考。");
-        clear(user);
+        endConversation(user);
     }
 
+    @Override
+    public void onCleardMemory(String user) {
+        wechatService.sendMessageToUser(user, "[系统]\n记忆已经清除，让我们重新开始聊天吧。");
+    }
 
     @Override
-    public boolean onAssistantResponsed(String user, String content) {
-        wechatService.sendMessageToUser(user, content);
-        return true;
+    public void onMessage(String user, String message) {
+        wechatService.sendMessageToUser(user, message);
     }
 
 

@@ -8,12 +8,12 @@ import java.util.Map;
 import im.langchainjava.im.ImService;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.llm.entity.function.FunctionProperty;
-import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.tool.BasicTool;
+import im.langchainjava.tool.ToolOut;
 import im.langchainjava.tool.ToolUtils;
-import lombok.extern.slf4j.Slf4j;
 import im.langchainjava.utils.JsonUtils;
 import im.langchainjava.utils.StringUtil;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class AgentControlFunction extends BasicTool{
@@ -21,23 +21,25 @@ public class AgentControlFunction extends BasicTool{
     public static String PARAM_SUMMARY = "summary";
     public static String PARAM_ASK = "ask_user";
     public static String PARAM_QUESTION = "user_requirement";
+    public static String PARAM_NUM_FUNC_CALL = "number_of_function_calls";
+    public static String PARAM_ANSWER_ASSIS_KNOWLEDGE = "answer_with_assistant_knowledge";
     public static String PARAM_EXP_1 = "example1";
     public static String PARAM_EXP_2 = "example2";
     public static String PARAM_EXP_3 = "example3";
-    public static String PARAM_ACT = "action";
+    // public static String PARAM_ACT = "action";
     public static String PARAM_ANSWERED = "fullfilled";
     public static String PARAM_ANSWERED_BY = "fullfilled_by";
 
     public static String ANSWERED_YES = "yes";
     public static String ANSWERED_NO = "no";
     public static String ANSWERED_PARTIAL = "partial";
-    public static String ACTION_TRY_AGAIN = "try_another_function";
+    public static String ACTION_WAIT_USER = "wait_user_input";
     public static String ACTION_END = "end_conversation";
 
     ImService im;
 
-    public AgentControlFunction(ChatMemoryProvider memoryProvider, ImService im) {
-        super(memoryProvider);
+    public AgentControlFunction(ImService im) {
+        // super(memoryProvider);
         this.im = im;
     }
 
@@ -55,16 +57,17 @@ public class AgentControlFunction extends BasicTool{
     @Override
     public Map<String, FunctionProperty> getProperties() {
         Map<String, FunctionProperty> properties = new HashMap<>();
-        FunctionProperty act = FunctionProperty.builder()
-                .description(new StringBuilder()
-                        .append("The action for the ai assistant to take. Must be one of {{wait_user_input, end_conversation, continue}}")
-                        // .append("If the ai assistant is asking the user a question, this field should be `wait_user_input`.\r\n")
-                        // .append("If the user's question is answered, this field should be `end_conversation`.\r\n")
-                        // .append("If the ai assistant has made a function call and the function call failed, this field should be `continue`\r\n")
-                        // .append("If user's requirement is partially fullfilled, this field should be `call_next_function`\r\n")
-                        .toString())
+        
+        FunctionProperty numFuncCall = FunctionProperty.builder()
+                .description("Number of function calls.")
                 .build();
-        properties.put(PARAM_ACT, act);
+        properties.put(PARAM_NUM_FUNC_CALL, numFuncCall);
+
+        FunctionProperty answerAssis = FunctionProperty.builder()
+                .description("Did the assistant tried to answer with its own knowledge. Must be one of {{yes, no}}")
+                .build();
+        properties.put(PARAM_ANSWER_ASSIS_KNOWLEDGE, answerAssis);
+
         FunctionProperty question = FunctionProperty.builder()
                 .description("The user's requirement.")
                 .build();
@@ -108,7 +111,8 @@ public class AgentControlFunction extends BasicTool{
         required.add(PARAM_SUMMARY);
         required.add(PARAM_ASK); 
         required.add(PARAM_ANSWERED_BY);
-        required.add(PARAM_ACT);
+        required.add(PARAM_ANSWER_ASSIS_KNOWLEDGE);
+        required.add(PARAM_NUM_FUNC_CALL);
         required.add(PARAM_EXP_1);
         required.add(PARAM_EXP_2);
         required.add(PARAM_EXP_3);
@@ -120,44 +124,69 @@ public class AgentControlFunction extends BasicTool{
     @Override
     public ToolOut doInvoke(String user, FunctionCall call) {
         log.info(JsonUtils.fromObject(call));
-        boolean answered = false;
-        try{
-            if(ToolUtils.compareStringParamIgnoreCase(call, PARAM_ANSWERED, ANSWERED_YES)){
-                answered = true;
-                log.info("Question is answered.");
-            }
-            if(answered || ToolUtils.compareStringParamIgnoreCase(call, PARAM_ACT, ACTION_END)){
-                //should clear memory
-                log.info("Should clear memory.");
-                clear(user, call);
-            }
-        }catch(Exception e){
-            //should not clear memory. do nothing.
-            e.printStackTrace();
+        
+        
+        // question is answered
+        boolean answered = ToolUtils.compareStringParamIgnoreCase(call, PARAM_ANSWERED, ANSWERED_YES);
+        if(answered){
+            return finalAnswer(user, call);
+        }
+        
+        // too many function call
+        int funcNum = ToolUtils.getIntParam(call, PARAM_NUM_FUNC_CALL);
+        boolean answerAssisKnowledge = ToolUtils.compareStringParamIgnoreCase(call, PARAM_ANSWER_ASSIS_KNOWLEDGE, ANSWERED_YES);
+        if(funcNum >= 2 && answerAssisKnowledge){
+            return endConversation(user, call);
         }
 
+        // ask user a question
         String ask = ToolUtils.getStringParam(call, PARAM_ASK);
         if(!StringUtil.isNullOrEmpty(ask)){
-            im.sendMessageToUser(user, ask);
-            return onResult(user, ask);
+            return askUser(user, call);
         }
 
-        if(!answered){
-            if(ToolUtils.compareStringParamIgnoreCase(call, PARAM_ANSWERED, ANSWERED_PARTIAL)){
-                return onResult(user, null);
-            }
-            if(ToolUtils.compareStringParamIgnoreCase(call, PARAM_ACT, ACTION_TRY_AGAIN)){
-                return onResult(user, null);
-            }
+        // continue
+        return runAnotherRound(user, call);
+    }
+
+    private ToolOut runAnotherRound(String user, FunctionCall call){
+        return next(user, null, null);
+    }
+
+    private ToolOut askUser(String user, FunctionCall functionCall){
+        String ask = ToolUtils.getStringParam(functionCall, PARAM_ASK);
+        return waitUserInput(user, null, ask);
+    }
+
+    private ToolOut finalAnswer(String user, FunctionCall functionCall){
+        return endConversation(user, functionCall);
+    }
+
+    private ToolOut endConversation(String user, FunctionCall functionCall){
+
+        String summary = ToolUtils.getStringParam(functionCall, PARAM_SUMMARY);
+        String ask = ToolUtils.getStringParam(functionCall, PARAM_ASK);
+
+        if(StringUtil.isNullOrEmpty(summary)){
+            im.sendMessageToUser(user, summary);
         }
-        if(ToolUtils.compareStringParamIgnoreCase(call, PARAM_ANSWERED, ANSWERED_NO)){
+        if(StringUtil.isNullOrEmpty(ask)){
+            im.sendMessageToUser(user, ask);
+        }
+
+        if(ToolUtils.compareStringParamIgnoreCase(functionCall, PARAM_ANSWERED, ANSWERED_NO)){
             im.sendMessageToUser(user, "[系统]\n如果对结果不满意，可以换个方式向我提问。");
         }
 
-        return waitUserInput(user);
+        String prompt = getPrompt(user, functionCall);
+        if(StringUtil.isNullOrEmpty(prompt)){
+            im.sendMessageToUser(user, prompt);
+        }
+
+        return endConversation(user, summary, ask);
     }
 
-    private void clear(String user, FunctionCall functionCall){
+    private String getPrompt(String user, FunctionCall functionCall){
 
         List<String> prompts = new ArrayList<>();
 
@@ -176,22 +205,16 @@ public class AgentControlFunction extends BasicTool{
             prompts.add(prompt3);
         }
         
-        String summary = ToolUtils.getStringParam(functionCall, PARAM_SUMMARY);
-        String message = "";
-        if(!StringUtil.isNullOrEmpty(summary)){
-            message = summary + "\n\n";
-        }
-        message = message + "[系统]\n已经为您解答完毕，系统将不再保存之前的聊天记忆，让我们重新开始聊天吧。\n";
+        StringBuilder sb = new StringBuilder("[提示]\n");
 
         if(!prompts.isEmpty()){
-            message = message + "\n您可以这样问我：\n";
+            sb.append("您可以这样问我：\n");
             for(String prompt : prompts){
-                message = message + prompt + "\r\n";
+                sb.append(prompt + "\r\n");
             }
         }
 
-        memoryProvider.reset(user);
-        im.sendMessageToUser(user, message);
+        return sb.toString();
     }
 
 }
