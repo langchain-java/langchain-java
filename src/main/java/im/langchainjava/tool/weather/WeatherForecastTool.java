@@ -88,7 +88,7 @@ public class WeatherForecastTool extends BasicTool{
     }
 
     @Override
-    public ToolOut doInvoke(String user, FunctionCall call) {
+    public ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory) {
         try{
             String place = ToolUtils.getStringParam(call, PARAM_PLACE);
             String city = ToolUtils.getStringParam(call, PARAM_CITY);
@@ -96,9 +96,9 @@ public class WeatherForecastTool extends BasicTool{
             if(StringUtil.isNullOrEmpty(city)){
                 return invalidParameter(user, "function input " + PARAM_CITY + " can not be empty.");
             }
-            if(StringUtil.isNullOrEmpty(place)){
-                return invalidParameter(user, "function input " + PARAM_PLACE + " can not be empty.");
-            }
+            // if(StringUtil.isNullOrEmpty(place)){
+            //     return invalidParameter(user, "function input " + PARAM_PLACE + " can not be empty.");
+            // }
             String date = ToolUtils.getStringParam(call, PARAM_DATE);
             if(StringUtil.isNullOrEmpty(date)){
                 return invalidParameter(user, "function input " + PARAM_DATE + " can not be empty.");
@@ -106,7 +106,7 @@ public class WeatherForecastTool extends BasicTool{
             
             String query = city + place + " " + date;
             Weather weather = weatherService.getWeather(place, city);
-            wechat.sendMessageToUser(user, "[天气预报]\n正在查找" + query + "的天气情况。"); 
+            wechat.sendMessageToUser(user, "[天气预报]\n正在查找 " + query + " 的天气情况。"); 
             StringBuilder sb = new StringBuilder();
             if(weather != null && weather.getDaily() != null && !weather.getDaily().isEmpty()){
                 List<DailyWeather> daily = weather.getDaily();

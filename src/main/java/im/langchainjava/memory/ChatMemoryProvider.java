@@ -41,4 +41,8 @@ public interface ChatMemoryProvider {
     int getRound(String user);
 
     int incrRoundAndGet(String user);
+
+    int getFunctionCallNum(String user);
+
+    int incrFunctionCallAndGet(String user);
 }

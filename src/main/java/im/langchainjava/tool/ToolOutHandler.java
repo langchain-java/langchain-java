@@ -2,7 +2,7 @@ package im.langchainjava.tool;
 
 import java.util.function.Function;
 
-import im.langchainjava.tool.Tool.FunctionMessage;
+import im.langchainjava.tool.ToolOut.FunctionMessage;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;

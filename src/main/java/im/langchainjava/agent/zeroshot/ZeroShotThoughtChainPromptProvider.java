@@ -23,12 +23,13 @@ public class ZeroShotThoughtChainPromptProvider extends ControllerChatPromptProv
             +"Your task is to extract the user's requirement from chat messages between user and assitant and perform the following actions: \r\n"
             +"\"\"\"\r\n" 
             +"1. Think what is the best action for fullfilling user's requirement.\r\n"
-            +"2. You can ask the user to clarify his/her question or provide more information for the question.\r\n"
-            +"3. You can make a function call from the function list to get information for user's requirement.\r\n"
-            +"4. When you make a function call, don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous.\r\n"
-            +"5. When you make a function call, don't leave function input values blank. You should ask the user to provide information of all the required parameters for a function call. \r\n"
-            +"6. If there are already more than 3 function calls and still no good results to the user's requirement. You should try to answer the question with your own knowledge.\r\n"
-            +"7. If you don't know the answer, it is hornest to tell the user you don't know the answer.\r\n"
+            +"2. If you have already answered user's question, you should end conversation. \r\n"
+            +"3. You can ask the user to clarify his/her question or provide more information for the question.\r\n"
+            +"4. You can make a function call from the function list to get information for user's requirement.\r\n"
+            +"5. If you make a function call, don't make assumptions about what values to plug into functions. Ask for clarification if a user request is ambiguous.\r\n"
+            +"6. If you make a function call, don't leave function input values blank. You should ask the user to provide information of all the required parameters for a function call. \r\n"
+            +"7. If there are already more than 3 function calls and still no good results to the user's requirement. You should try to answer the question with your own knowledge.\r\n"
+            +"8. If you don't know the answer, it is hornest to tell the user you don't know the answer.\r\n"
             +"\"\"\"\r\n";
     private static String DEF_STATEMENT = "Now let's work this out in a step by step way to be sure we have the right answer.\r\n";
     private static String DEF_PERSONALITY = "Your response should use the following format:\r\n"
@@ -132,41 +133,11 @@ public class ZeroShotThoughtChainPromptProvider extends ControllerChatPromptProv
     @Override 
     public List<ChatMessage> getPrompt(String user) {
         List<ChatMessage> chats = new ArrayList<>();
-        // String todayDate = "Today date is: " + new SimpleDateFormat("YYYY-MM-dd").format(new Date()) + ".\n";
-        // StringBuilder sb = new StringBuilder();
-        // sb.append("You may use the following functions by putting the function name and function input in your response:\r\n")
-        //     .append("\"\"\"\r\n")
-        //     .append(this.functionStr)
-        //     .append("\r\n")
-        //     .append("\"\"\"");
-
-        // String prompt = getRole() + getInsight() + sb.toString() + getStatement() + getPersonality();
         String prompt = getRole() + getInsight() + getStatement();
         ChatMessage sysMsg = new ChatMessage(ROLE_SYSTEM, prompt);
         chats.add(sysMsg);
         chats.addAll(super.getMemoryProvider().getPrompt(user));
         return chats;
     }
-
-    // public List<ChatMessage> getFunctionCallPrompt(String user, String message){
-    //     List<ChatMessage> chats = new ArrayList<>();
-    //     String prompt = "You are an action adapter. You will be provided a text from an ai assistant's response. Your task is taking the following steps based on text:\r\n"
-    //                     + "Steps: \"\"\"\r\n"
-    //                     + "1. If the text is an unstructred message, you should response the message directly to user.\r\n"
-    //                     + "2. If the text is structured text, and the value field `action` is `message`, you should response with value of the `Message` field.\r\n"
-    //                     + "3. If `action` value is `function_call`, you should make a function call accordingly. \r\n"
-    //                     +"\"\"\"\r\n"
-    //                     +"Text: \"\"\"\r\n"
-    //                     +message
-    //                     +"\r\n\"\"\"\r\n"
-    //                     +"If the response is a message to user, your response should be in the following format:\r\n"
-    //                     +"Response Format:\"\"\"\r\n"
-    //                     +"The unstructured message to user.\r\n"
-    //                     +"\"\"\"";
-
-    //     ChatMessage sysMsg = new ChatMessage(ROLE_SYSTEM, prompt);
-    //     chats.add(sysMsg);
-    //     return chats;
-    // }
 
 }

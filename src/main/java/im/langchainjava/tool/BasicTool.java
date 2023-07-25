@@ -13,7 +13,9 @@ import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.tool.ControllorToolOut.Action;
 import im.langchainjava.utils.JsonUtils;
 import im.langchainjava.utils.StringUtil;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public abstract class BasicTool implements Tool {
 
     public static String KEY_FUNC_OUT = "Function";
@@ -28,7 +30,7 @@ public abstract class BasicTool implements Tool {
     public static String OBSERVATION_ON_ERR = "This function is not available. Don't use this function again.";
     public static String THOUGHT_ON_EMPTY = "There is no result. I should try another function or tell the user `我不知道`.";
     public static String THOUGHT_ON_ERR = "I should try another function or tell the user `我不知道`.";
-    public static String THOUGHT = "Now I have the results. I should extract useful information from these results and inform the user.";
+    public static String THOUGHT = "Now I have the results. I should extract useful information from these results and think what action to take.";
     public static String OBSERVATION_ON_INVALID_PARAM = "Invalid parameters: ";
     public static String THOUGT_ON_INVALID_PARAM = "I should ask the user to clarify the question or try the function again with corrected parameter.";
 
@@ -50,7 +52,7 @@ public abstract class BasicTool implements Tool {
     public abstract String getDescription();
     public abstract Map<String, FunctionProperty> getProperties();
     public abstract List<String> getRequiredProperties();
-    public abstract ToolOut doInvoke(String user, FunctionCall call);
+    public abstract ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory);
 
     public BasicTool(){
         // this.memoryProvider = memoryProvider;
@@ -238,6 +240,14 @@ public abstract class BasicTool implements Tool {
                         .get();
     }
 
+
+    public ToolOut finalAnswer(String user, String message, String ask){
+        return ToolOuts.of(user, Action.finalAnswer)
+                        .message(KEY_CONTROL_SUMMARY, message)
+                        .message(KEY_CONTROL_ASK, ask)
+                        .get();
+    }
+
     public ToolOut endConversation(String user, String message, String ask){
         return ToolOuts.of(user, Action.endConversation)
                         .message(KEY_CONTROL_SUMMARY, message)
@@ -245,18 +255,32 @@ public abstract class BasicTool implements Tool {
                         .get();
     }
 
-    public ToolOut next(String user, String message, String ask){
-        return ToolOuts.of(user, Action.next)
-                        .message(KEY_CONTROL_SUMMARY, message)
-                        .message(KEY_CONTROL_ASK, ask)
-                        .get();
+    public ToolOut next(String user, String thought, String message, String ask){
+        ToolOuts to = ToolOuts.of(user, Action.next);
+        if(!StringUtil.isNullOrEmpty(thought)){
+            to.message(KEY_THOUGHT, thought);
+        }
+        if(!StringUtil.isNullOrEmpty(message)){
+            to.message(KEY_CONTROL_SUMMARY, message);
+        }
+        if(!StringUtil.isNullOrEmpty(ask)){
+            to.message(KEY_CONTROL_ASK, ask);
+        }
+        return to.get();
     }
 
-    public ToolOut waitUserInput(String user, String message, String ask){
-        return ToolOuts.of(user, Action.waitUserInput)
-                        .message(KEY_CONTROL_SUMMARY, message)
-                        .message(KEY_CONTROL_ASK, ask)
-                        .get();
+    public ToolOut waitUserInput(String user, String thought, String message, String ask){
+        ToolOuts to = ToolOuts.of(user, Action.waitUserInput);
+        if(!StringUtil.isNullOrEmpty(thought)){
+            to.message(KEY_THOUGHT, thought);
+        }
+        if(!StringUtil.isNullOrEmpty(message)){
+            to.message(KEY_CONTROL_SUMMARY, message);
+        }
+        if(!StringUtil.isNullOrEmpty(ask)){
+            to.message(KEY_CONTROL_ASK, ask);
+        }
+        return to.get();
     }
 
     // @Override
@@ -281,7 +305,7 @@ public abstract class BasicTool implements Tool {
     }
 
     @Override
-    final public ToolOut invoke(String user, FunctionCall call){
+    final public ToolOut invoke(String user, FunctionCall call, ChatMemoryProvider memory){
         if(call == null ){
             throw new FunctionCallException("The function call is null!");
         }
@@ -298,15 +322,13 @@ public abstract class BasicTool implements Tool {
         if(requiredProperties != null && !requiredProperties.isEmpty() && call.getParsedArguments() != null){
             for(String r : requiredProperties){
                 if(!call.getParsedArguments().containsKey(r)){
-                    return invalidParameter(user, "Missing required parameter " + r + ".");
-                }
-                if(call.getParsedArguments().get(r).asText() == null){
-                    return invalidParameter(user, "Required parameter " + r + " is null.");
+                    log.info("Missing required parameter " + r + ".");
+                    // return invalidParameter(user, "Missing required parameter " + r + ".");
                 }
             }
         }
 
-        return doInvoke(user, call);
+        return doInvoke(user, call, memory);
     }
 
     private Map<String, JsonNode> parseFunctionCallParam(FunctionCall call){

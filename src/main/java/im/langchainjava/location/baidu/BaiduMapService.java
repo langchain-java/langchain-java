@@ -56,9 +56,9 @@ public class BaiduMapService implements LocationService{
         //     region = query;
         // }
 
-        // if(StringUtil.isNullOrEmpty(query)){
-        //     queryStr = cityStr;
-        // }
+        if(StringUtil.isNullOrEmpty(query)){
+            queryStr = "政府";
+        }
 
         BaiduPlaceSuggestion suggest = null;
         List<Place> places = new ArrayList<>();

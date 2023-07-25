@@ -50,7 +50,7 @@ public abstract class FunctionCallAgent extends CommandAgent{
         if(this.tools.containsKey(functionCall.getName())){
             Tool t = this.tools.get(functionCall.getName());
             try{
-                ToolOut toolOut = t.invoke(user, functionCall);
+                ToolOut toolOut = t.invoke(user, functionCall, getMemoryProvider());
                 if(toolOut == null){
                     return onFunctionCallException(user, t, new FunctionCallException("Function call "+ t.getFunction().getName() + " returns null!"));
                 }

@@ -4,8 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
-import im.langchainjava.tool.Tool.FunctionMessage;
-
 public class AgentToolOut implements ToolOut{
     final String user;
     final Map<String ,ToolOutHandler> handlerMap;

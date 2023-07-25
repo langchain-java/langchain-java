@@ -55,6 +55,8 @@ public abstract class AsyncAgent implements LlmErrorHandler{
 
     public abstract void onUserMessageAtBusyTime(String user, String text);
 
+    public abstract boolean onInvokingAi(String user);
+
     public void chat(String user, String message){
         if(waiting.contains(user) || processing.contains(user)){
             onUserMessageAtBusyTime(user, message);
@@ -112,10 +114,16 @@ public abstract class AsyncAgent implements LlmErrorHandler{
                 showMessages(promptProvider.getPrompt(user));
             }
 
+            if(!onInvokingAi(user)){
+                break;
+            }
+
             chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user), promptProvider.getFunctions(user), null,  this);
 
             if(chatMessage == null){
-                return;
+                // all exceptions causing chatMessage == null are handled in chatCompletion. 
+                // We simple do control logic here.
+                break;
             }
             
             if(!onAiResponse(user, chatMessage)){
@@ -147,6 +155,14 @@ public abstract class AsyncAgent implements LlmErrorHandler{
     private void incRetry(String user){
         int retry = getRetry(user) + 1;
         memoryProvider.setContextForUser(user, MEMORY_KEY_RETRY, Integer.valueOf(retry));
+    }
+
+    public void setContext(String user, String key, Object value){
+        memoryProvider.setContextForUser(user, key, value);
+    }
+
+    public Object getContext(String user, String key){
+        return memoryProvider.getContextForUser(user, key, null);
     }
 
     // @Getter

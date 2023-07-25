@@ -9,7 +9,6 @@ import im.langchainjava.agent.controlledagent.ControllerChatPromptProvider;
 import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.tool.ControllorToolOut;
 import im.langchainjava.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,6 +43,11 @@ public class ZeroShotThoughtChainAgent extends ControlledAgent{
     }
 
     @Override
+    public void onMaxFunctionCall(String user){
+        wechatService.sendMessageToUser(user, "[系统]\n已经达到最大函数调用量。请用其他方式向小助手提问。");
+    }
+
+    @Override
     public void onUserMessageAtBusyTime(String user, String text) {
         this.wechatService.sendMessageToUser(user, "[系统]\n由于我正在尝试回答您的上一个问题，暂时只能忽略您的这个问题：" + text);
     }
@@ -56,7 +60,7 @@ public class ZeroShotThoughtChainAgent extends ControlledAgent{
     @Override
     public void onMaxTokenExceeded(String user) {
         wechatService.sendMessageToUser(user, "[系统]\n大模型记忆已经撑爆无法继续思考。");
-        endConversation(user);
+        super.onMaxTokenExceeded(user);
     }
 
     @Override
@@ -69,6 +73,20 @@ public class ZeroShotThoughtChainAgent extends ControlledAgent{
         wechatService.sendMessageToUser(user, message);
     }
 
+    @Override
+    public void onWaitUserInput(String user) {
+        wechatService.sendMessageToUser(user, "[系统]\n请您回复小助手的问题。");
+    }
+
+    @Override
+    public void onFinalAnswer(String user) {
+        wechatService.sendMessageToUser(user, "[系统]\n小助手已经回答完您的提问。");
+    }
+
+    @Override
+    public void onPartialAnswer(String user) {
+        wechatService.sendMessageToUser(user, "[系统]\n如果您对回答不满意，请换个方式向我提出问题。");
+    }
 
 
 }

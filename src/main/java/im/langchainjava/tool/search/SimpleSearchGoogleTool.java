@@ -1,5 +1,7 @@
 package im.langchainjava.tool.search;
 
+import static im.langchainjava.memory.BasicChatMemory.ROLE_SYSTEM;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -21,8 +23,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import static im.langchainjava.memory.BasicChatMemory.ROLE_SYSTEM;
 
 @Slf4j
 public class SimpleSearchGoogleTool extends BasicTool{
@@ -82,10 +82,10 @@ public class SimpleSearchGoogleTool extends BasicTool{
     }
 
     @Override
-    public ToolOut doInvoke(String user, FunctionCall call) {
+    public ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory) {
         String query = call.getParsedArguments().get(PARAM_QUERY).asText();
         wechat.sendMessageToUser(user, "[搜索引擎]\n正在搜索：" + query); 
-        String resp = "Could not find any result from the search engine.";
+        // String resp = "Could not find any result from the search engine.";
         try{
 
             List<SearchResultItem> results = searchService.search(query, 1, number); 
@@ -164,7 +164,7 @@ public class SimpleSearchGoogleTool extends BasicTool{
                 .append("2. <summary of selected result 2 in Chinese>:<link of selected result 2>\r\n")
                 .append("3. <summary of selected result 3 in Chinese>:<link of selected result 3>\"\"\"\r\n")
                 .toString();
-            log.info(prompt);
+            // log.info(prompt);
             ChatMessage msg = new ChatMessage(ROLE_SYSTEM, prompt);
             List<ChatMessage> msgs = new ArrayList<>();
             msgs.add(msg);
@@ -191,5 +191,6 @@ public class SimpleSearchGoogleTool extends BasicTool{
             }
         }
     }
+
 
 }

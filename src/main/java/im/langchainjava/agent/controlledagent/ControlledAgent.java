@@ -12,21 +12,23 @@ import im.langchainjava.tool.BasicTool;
 import im.langchainjava.tool.ControllorToolOut;
 import im.langchainjava.tool.ControllorToolOut.Action;
 import im.langchainjava.tool.Tool;
-import im.langchainjava.tool.Tool.FunctionMessage;
+import im.langchainjava.tool.ToolOut.FunctionMessage;
+import im.langchainjava.utils.JsonUtils;
+import im.langchainjava.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class ControlledAgent extends MemoryAgent{
 
-    private static int MAX_ROUNDS = 20;
+    public static String CONTEXT_KEY_FORCE_END_CONVERSATION = "control_force_end";
+    public static String CONTEXT_KEY_FORCE_WAIT_USER = "control_force_wait";
 
     ControllerChatPromptProvider controllerChatPromptProvider;
 
-    // public abstract void onControllerReturned(String user, ControllorToolOut out);
-
-    public abstract void onMaxRound(String user);
-
+    public abstract void onPartialAnswer(String user);
     public abstract void onMessage(String user, String message);
+    public abstract void onWaitUserInput(String user);
+    public abstract void onFinalAnswer(String user);
 
     public ControlledAgent(LlmService llm, ControllerChatPromptProvider prompt, ChatMemoryProvider memory, CommandParser c, List<Tool> tools) {
         super(llm, prompt, memory, c, tools);
@@ -34,12 +36,7 @@ public abstract class ControlledAgent extends MemoryAgent{
     }
 
     @Override
-    final public boolean onAssistantResponsed(String user, String content, int round) {
-        
-        if(content != null){
-            onMessage(user, content);
-        }
-
+    public boolean onAssistantInvoke(String user){
         List<ChatMessage> prompt = controllerChatPromptProvider.getControllerPrompt(user);
         ChatMessage message = null;
         int retry = 3;
@@ -60,13 +57,17 @@ public abstract class ControlledAgent extends MemoryAgent{
             return false;
         }
         
+        log.info(JsonUtils.fromObject(message.getFunctionCall()));
+
         try{
-            ControllorToolOut out = (ControllorToolOut) controllerChatPromptProvider.getInvokableControllerFunction().invoke(user, message.getFunctionCall());
+            ControllorToolOut out = (ControllorToolOut) controllerChatPromptProvider.getInvokableControllerFunction().invoke(user, message.getFunctionCall(), getMemoryProvider());
             if(out == null){
                 onControllerException(user, "The controller function returns null");
                 return false;
             }
-            return doControl(user, out, round); 
+            boolean controlled = doControl(user, out); 
+            setContext(user, CONTEXT_KEY_FORCE_WAIT_USER, Boolean.FALSE);
+            return controlled;
         }catch(Exception e){
             e.printStackTrace();
             onControllerException(user, "There is an exception while invoking controller function.\n" + e.getMessage());
@@ -74,31 +75,44 @@ public abstract class ControlledAgent extends MemoryAgent{
         }
     }
 
-    private boolean doControl(String user, ControllorToolOut out, int round){
+
+    private boolean doControl(String user, ControllorToolOut out){
         
-        out.handlerForKey(BasicTool.KEY_CONTROL_SUMMARY, remember)
+        out
+            .handlerForKey(BasicTool.KEY_CONTROL_SUMMARY, remember)
             .handlerForKey(BasicTool.KEY_CONTROL_ASK, remember)
+            .handlerForKey(BasicTool.KEY_THOUGHT, remember)
             .run();
 
         if(out.getAction() == null){
             log.info("Controller action is null.");
             return false;
         }
-        
-        if(round >= MAX_ROUNDS){
-            onMaxRound(user);
-            endConversation(user);
-            return false;
-        }
-        
+
         if(out.getAction() == Action.endConversation){
+            onPartialAnswer(user);
             endConversation(user);
             return false;
         }
         if(out.getAction() == Action.next){
+            if(getContext(user, CONTEXT_KEY_FORCE_END_CONVERSATION) != null && ((Boolean)getContext(user, CONTEXT_KEY_FORCE_END_CONVERSATION))){
+                onPartialAnswer(user);
+                endConversation(user);
+                return false;
+            }
+            if(getContext(user, CONTEXT_KEY_FORCE_WAIT_USER) != null && ((Boolean)getContext(user, CONTEXT_KEY_FORCE_WAIT_USER))){
+                onWaitUserInput(user);
+                return false;
+            }
             return true;
         }
         if(out.getAction() == Action.waitUserInput){
+            onWaitUserInput(user);
+            return false;
+        }
+        if(out.getAction() == Action.finalAnswer){
+            onFinalAnswer(user);
+            endConversation(user);
             return false;
         }
         return false;
@@ -112,8 +126,45 @@ public abstract class ControlledAgent extends MemoryAgent{
 
     // think
     final private Function<FunctionMessage, Void> remember = input -> {
+        if(StringUtil.isNullOrEmpty(input.getMessage())){
+            return null;
+        }
         rememberAssistantMessage(input.getUser(), input.getMessage() + " \n");
         return null;
     };
+
+
+    @Override
+    final public void onAssistantResponsed(String user, String content, boolean isAssistantMessage) {
+        if(content != null){
+            onMessage(user, content);
+            setContext(user, CONTEXT_KEY_FORCE_WAIT_USER, Boolean.TRUE);
+        }
+    }
+
+    @Override
+    public void onAiException(String user, Exception e){
+        setContext(user, CONTEXT_KEY_FORCE_WAIT_USER, Boolean.FALSE);
+    }
+
+    @Override
+    public void onMaxTokenExceeded(String user) {
+        endConversation(user);
+    }
+    
+    @Override
+    public void onMaxRound(String user){
+        setContext(user, CONTEXT_KEY_FORCE_END_CONVERSATION, Boolean.TRUE);
+    }
+
+    @Override
+    public void onMaxFunctionCall(String user){
+        setContext(user, CONTEXT_KEY_FORCE_END_CONVERSATION, Boolean.TRUE);
+    }
+
+    @Override
+    public void onAgentEndConversation(String user){
+        setContext(user, CONTEXT_KEY_FORCE_END_CONVERSATION, Boolean.TRUE);
+    }
 
 }

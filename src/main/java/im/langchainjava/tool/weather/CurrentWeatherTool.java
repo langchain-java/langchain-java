@@ -78,20 +78,20 @@ public class CurrentWeatherTool extends BasicTool{
     }
 
     @Override
-    public ToolOut doInvoke(String user, FunctionCall call) {
+    public ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory) {
         try{
             String place = ToolUtils.getStringParam(call, PARAM_PLACE);
             String city = ToolUtils.getStringParam(call, PARAM_CITY);
+            String query = city + place;
+            wechat.sendMessageToUser(user, "[当前天气]\n正在查找" + query + "的天气情况。"); 
 
             if(StringUtil.isNullOrEmpty(city)){
                 return invalidParameter(user, "function input " + PARAM_CITY + " can not be empty.");
             }
-            if(StringUtil.isNullOrEmpty(place)){
-                return invalidParameter(user, "function input " + PARAM_PLACE + " can not be empty.");
-            }
-            String query = city + place;
+            // if(StringUtil.isNullOrEmpty(place)){
+            //     return invalidParameter(user, "function input " + PARAM_PLACE + " can not be empty.");
+            // }
             CurrentWeather weather = weatherService.getCurrentWeather(place, city);
-            wechat.sendMessageToUser(user, "[当前天气]\n正在查找" + query + "的天气情况。"); 
             StringBuilder sb = new StringBuilder();
             if(weather != null){
                 sb.append("[当前天气]").append(city).append(place).append("\n")

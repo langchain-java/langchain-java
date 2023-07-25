@@ -92,7 +92,7 @@ public class SimpleLocationTool extends BasicTool{
     }
 
     @Override
-    public ToolOut doInvoke(String user, FunctionCall call) {
+    public ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory) {
         try{
             // String place = call.getParsedArguments().get(PARAM_PLACE).asText();
             // String city = call.getParsedArguments().get(PARAM_CITY).asText();

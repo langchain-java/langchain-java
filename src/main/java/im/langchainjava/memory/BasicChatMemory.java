@@ -142,4 +142,14 @@ public class BasicChatMemory implements ChatMemoryProvider{
         return getMemory(user).incrRoundAndGet();
     }
 
+    @Override
+    public int getFunctionCallNum(String user){
+        return getMemory(user).getFunctionCallNum();
+    }
+
+    @Override
+    public int incrFunctionCallAndGet(String user){
+        return getMemory(user).incrFunctionCallAndGet();
+    }
+
 }

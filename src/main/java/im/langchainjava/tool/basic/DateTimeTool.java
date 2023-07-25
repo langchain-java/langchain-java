@@ -63,7 +63,7 @@ public class DateTimeTool extends BasicTool{
     }
 
     @Override
-    public ToolOut doInvoke(String user, FunctionCall call) {
+    public ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory) {
         String offsetStr = ToolUtils.getStringParam(call, PARAM_OFFSET);
         int offset = 0;
         if(!StringUtil.isNullOrEmpty(offsetStr)){

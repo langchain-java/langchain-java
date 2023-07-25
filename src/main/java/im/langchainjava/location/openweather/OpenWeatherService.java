@@ -36,7 +36,7 @@ public class OpenWeatherService implements WeatherService{
 
     @Override
     public List<DailyWeather> getDailyWeather(String place, String city) {
-                Weather w = getWeatherOfPlace(place, city);
+        Weather w = getWeatherOfPlace(place, city);
         if(w == null){
             return new ArrayList<>();
         }
@@ -55,7 +55,18 @@ public class OpenWeatherService implements WeatherService{
     private Weather getWeatherOfPlace(String place, String city){
         List<Place> places = this.locationService.queryPlace(place, city);
         if(places != null && !places.isEmpty()){
-            Location l = places.get(0).getLocation();
+            Location l = null;
+            for(Place p : places){
+                l = p.getLocation();
+                if(l != null){
+                    break;
+                }
+            }
+            
+            if(l == null){
+                return null;
+            }
+
             Weather weather = connector.getWeather(Float.valueOf(l.getLat()), Float.valueOf(l.getLng()), appId);
             return weather;
         }

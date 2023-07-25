@@ -22,6 +22,7 @@ public class ChatMemory{
     long lastActiveTimestamp = 0L;
     long index = 0L;
     int round = 0;
+    int functionCallNum = 0;
     BlockingQueue<ChatMessage> pending;
     ArrayList<ChatMessage> ending;
 
@@ -70,6 +71,7 @@ public class ChatMemory{
         ending.clear();
         this.context.clear();
         this.round = 0;
+        this.functionCallNum = 0;
         updateTimestamp();
     }
 
@@ -136,5 +138,10 @@ public class ChatMemory{
     public int incrRoundAndGet(){
         this.round ++;
         return this.round;
+    }
+
+    public int incrFunctionCallAndGet(){
+        this.functionCallNum ++;
+        return this.functionCallNum;
     }
 }

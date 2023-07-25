@@ -18,6 +18,7 @@ public class ControllorToolOut extends AgentToolOut{
     public static enum Action{ 
         waitUserInput,
         endConversation,
+        finalAnswer,
         next;
     }
 }
