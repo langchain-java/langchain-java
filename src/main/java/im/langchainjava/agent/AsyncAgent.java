@@ -32,16 +32,10 @@ public abstract class AsyncAgent implements LlmErrorHandler{
 
     boolean showPrompt = false;
 
-    // private List<Function<TriggerInput, Void>> triggers = new ArrayList<>();
-
     private LinkedBlockingQueue<String> waiting = new LinkedBlockingQueue<>(); 
 
     private LinkedBlockingQueue<String> processing = new LinkedBlockingQueue<>(); 
 
-    // public void registerTrigger(Function<TriggerInput,Void> function){
-    //     this.triggers.add(function);
-    // }
-    
     public AsyncAgent(ChatPromptProvider prompt, ChatMemoryProvider memory, LlmService llm){
         this.promptProvider = prompt;
         this.memoryProvider = memory; 
@@ -50,12 +44,10 @@ public abstract class AsyncAgent implements LlmErrorHandler{
     }
 
     public abstract boolean onUserMessage(String user, String text);
-
-    public abstract boolean onAiResponse(String user, ChatMessage response);
-
     public abstract void onUserMessageAtBusyTime(String user, String text);
 
-    public abstract boolean onInvokingAi(String user);
+    public abstract boolean onAiResponse(String user, ChatMessage response, boolean isUserTurn);
+    public abstract boolean onInvokingAi(String user, boolean isUserTurn);
 
     public void chat(String user, String message){
         if(waiting.contains(user) || processing.contains(user)){
@@ -107,6 +99,8 @@ public abstract class AsyncAgent implements LlmErrorHandler{
 
     private void doChat(String user){
         ChatMessage chatMessage = null;
+
+        boolean isUserTurn = true;
         
         while(true){
 
@@ -114,11 +108,11 @@ public abstract class AsyncAgent implements LlmErrorHandler{
                 showMessages(promptProvider.getPrompt(user));
             }
 
-            if(!onInvokingAi(user)){
+            if(!onInvokingAi(user, isUserTurn)){
                 break;
             }
 
-            chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user), promptProvider.getFunctions(user), null,  this);
+            chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user), promptProvider.getFunctions(user), promptProvider.getFunctionCall(user),  this);
 
             if(chatMessage == null){
                 // all exceptions causing chatMessage == null are handled in chatCompletion. 
@@ -126,7 +120,10 @@ public abstract class AsyncAgent implements LlmErrorHandler{
                 break;
             }
             
-            if(!onAiResponse(user, chatMessage)){
+            boolean next = onAiResponse(user, chatMessage, isUserTurn);
+            isUserTurn = false;
+            
+            if(!next){
                 break;
             }
         }
@@ -164,12 +161,5 @@ public abstract class AsyncAgent implements LlmErrorHandler{
     public Object getContext(String user, String key){
         return memoryProvider.getContextForUser(user, key, null);
     }
-
-    // @Getter
-    // @AllArgsConstructor
-    // public static class TriggerInput{
-    //     String user;
-    //     String message;
-    // }
 
 }

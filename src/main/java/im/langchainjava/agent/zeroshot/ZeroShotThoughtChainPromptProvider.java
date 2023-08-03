@@ -7,17 +7,19 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import im.langchainjava.agent.controlledagent.ControllerChatPromptProvider;
+import im.langchainjava.agent.controlledagent.EpisodeSolver;
+import im.langchainjava.agent.controlledagent.EpisodicControlTool;
+import im.langchainjava.agent.controlledagent.EpisodicPromptProvider;
 import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.Function;
+import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.tool.Tool;
-import im.langchainjava.tool.agentcontrol.AgentControlFunction;
 import im.langchainjava.utils.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ZeroShotThoughtChainPromptProvider extends ControllerChatPromptProvider {
+public class ZeroShotThoughtChainPromptProvider extends EpisodicPromptProvider {
     private static String DEF_ROLE = "You are an ai assistant. ";
     private static String DEF_INSIGHT = "Current UTC date time is : " + new SimpleDateFormat("yyyyMMdd-HH:mm:ss").format(new Date()) + "\r\n"
             +"Your task is to extract the user's requirement from chat messages between user and assitant and perform the following actions: \r\n"
@@ -102,8 +104,8 @@ public class ZeroShotThoughtChainPromptProvider extends ControllerChatPromptProv
         return DEF_PERSONALITY;
     }
 
-    public ZeroShotThoughtChainPromptProvider(ChatMemoryProvider memory, List<Tool> tools, AgentControlFunction controller){
-        super(memory, controller);
+    public ZeroShotThoughtChainPromptProvider(EpisodeSolver solver, List<Tool> tools){
+        super(solver);
         this.tools = tools; 
         this.role = null;
         this.insight = null;
@@ -130,14 +132,20 @@ public class ZeroShotThoughtChainPromptProvider extends ControllerChatPromptProv
         return funs;
     }
 
-    @Override 
-    public List<ChatMessage> getPrompt(String user) {
+    @Override
+    public List<ChatMessage> getPrompt(String user){
         List<ChatMessage> chats = new ArrayList<>();
         String prompt = getRole() + getInsight() + getStatement();
         ChatMessage sysMsg = new ChatMessage(ROLE_SYSTEM, prompt);
         chats.add(sysMsg);
-        chats.addAll(super.getMemoryProvider().getPrompt(user));
+        chats.addAll(super.getEpisodicHistory(user));
         return chats;
     }
+
+    @Override
+    public FunctionCall getFunctionCall(String user) {
+        return null;
+    }
+
 
 }

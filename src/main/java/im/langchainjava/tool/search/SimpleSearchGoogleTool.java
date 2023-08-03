@@ -16,7 +16,7 @@ import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.search.SearchService;
 import im.langchainjava.search.SearchService.SearchResultItem;
-import im.langchainjava.tool.BasicTool;
+import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolOut;
 import im.langchainjava.utils.JsonUtils;
 import lombok.AllArgsConstructor;
@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class SimpleSearchGoogleTool extends BasicTool{
+public class SimpleSearchGoogleTool extends Tool{
 
     public static String PARAM_QUERY = "query";
     public static int MAX_LINK_LENGTH = 100;

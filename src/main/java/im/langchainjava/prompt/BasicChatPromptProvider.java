@@ -7,10 +7,11 @@ import java.util.List;
 
 import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.Function;
+import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.ChatMemoryProvider;
 import lombok.Getter;
 
-import static im.langchainjava.memory.BasicChatMemory.ROLE_SYSTEM;
+import static im.langchainjava.llm.LlmService.ROLE_SYSTEM;
 
 @Getter
 public class BasicChatPromptProvider implements ChatPromptProvider {
@@ -50,8 +51,8 @@ public class BasicChatPromptProvider implements ChatPromptProvider {
     }
 
     @Override
-    public List<ChatMessage> getFunctionCallPrompt(String user, String message) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getFunctionCallPrompt'");
+    public FunctionCall getFunctionCall(String user) {
+        return null;
     }
+
 }

@@ -14,7 +14,7 @@ import im.langchainjava.location.weather.Weather;
 import im.langchainjava.location.weather.WeatherNarr;
 import im.langchainjava.location.weather.WeatherService;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.tool.BasicTool;
+import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolOut;
 import im.langchainjava.tool.ToolUtils;
 import im.langchainjava.utils.DateTimeUtils;
@@ -22,7 +22,7 @@ import im.langchainjava.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class WeatherForecastTool extends BasicTool{
+public class WeatherForecastTool extends Tool{
 
     public static String PARAM_PLACE = "place";
     public static String PARAM_CITY = "city";

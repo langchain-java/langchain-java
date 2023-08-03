@@ -15,7 +15,6 @@ public class AgentToolOut implements ToolOut{
         this.handlers = handlers;
     }
 
-
     @Override
     public ToolOut handlerForKey(String key, Function<FunctionMessage, Void> handler){
         ToolOutHandler h = null;
@@ -37,7 +36,6 @@ public class AgentToolOut implements ToolOut{
         runHandlers(user, handlers);
         
     }
-
 
     static void runHandlers(String user, List<ToolOutHandler> handlers){
         runHandlers(user, handlers, null);
@@ -62,7 +60,6 @@ public class AgentToolOut implements ToolOut{
             fun.apply(input);
         }
     }
-
 
     @Override
     public String getMessageForKey(String key) {

@@ -4,14 +4,15 @@ import java.util.List;
 
 import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.Function;
+import im.langchainjava.llm.entity.function.FunctionCall;
 
 public interface ChatPromptProvider {
     
     public List<ChatMessage> getPrompt(String user);
 
     public List<Function> getFunctions(String user);
-    
-    public List<ChatMessage> getFunctionCallPrompt(String user, String message);
+
+    public FunctionCall getFunctionCall(String user);
 
     public static String grabChatString(List<ChatMessage> chats){
         StringBuilder sb = new StringBuilder();

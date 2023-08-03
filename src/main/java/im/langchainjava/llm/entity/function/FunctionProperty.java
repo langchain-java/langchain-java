@@ -2,6 +2,7 @@ package im.langchainjava.llm.entity.function;
 
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import lombok.AllArgsConstructor;
@@ -20,4 +21,7 @@ public class FunctionProperty {
     List<String> enumerate;
     
     String description; 
+
+    @JsonIgnore
+    String tag;
 }

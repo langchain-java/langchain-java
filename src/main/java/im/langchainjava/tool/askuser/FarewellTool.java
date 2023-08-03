@@ -9,12 +9,11 @@ import im.langchainjava.im.ImService;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.tool.BasicTool;
 import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolOut;
 import im.langchainjava.utils.StringUtil;
 
-public class FarewellTool extends BasicTool{
+public class FarewellTool extends Tool{
 
     public static String PARAM_MSG = "message";
 

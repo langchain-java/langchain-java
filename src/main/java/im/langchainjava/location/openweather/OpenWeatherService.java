@@ -18,16 +18,25 @@ public class OpenWeatherService implements WeatherService{
     LocationService locationService;
 
     String appId;
+    String language;
 
     public OpenWeatherService(String appId, LocationService locationService){
         this.appId = appId;
         this.connector = new OpenWeatherConnector();
         this.locationService = locationService;
+        this.language = OpenWeatherConnector.ZH_CN;
+    }
+
+    public OpenWeatherService(String appId, LocationService locationService, String lang){
+        this.appId = appId;
+        this.connector = new OpenWeatherConnector();
+        this.locationService = locationService;
+        this.language = lang;
     }
 
     @Override
     public CurrentWeather getCurrentWeather(String place, String city) {
-        Weather w = getWeatherOfPlace(place, city);
+        Weather w = getWeatherOfPlace(place, city, null);
         if(w == null){
             return null;
         }
@@ -36,7 +45,7 @@ public class OpenWeatherService implements WeatherService{
 
     @Override
     public List<DailyWeather> getDailyWeather(String place, String city) {
-        Weather w = getWeatherOfPlace(place, city);
+        Weather w = getWeatherOfPlace(place, city, null);
         if(w == null){
             return new ArrayList<>();
         }
@@ -45,14 +54,15 @@ public class OpenWeatherService implements WeatherService{
 
     @Override
     public List<WeatherAlert> getWeatherAlerts(String place, String city) {
-        Weather w = getWeatherOfPlace(place, city);
+        Weather w = getWeatherOfPlace(place, city, null);
         if(w == null){
             return new ArrayList<>();
         }
         return w.getAlerts();
     }
     
-    private Weather getWeatherOfPlace(String place, String city){
+    private Weather getWeatherOfPlace(String place, String city, String lang){
+        String myLang = lang == null ? this.language : lang;
         List<Place> places = this.locationService.queryPlace(place, city);
         if(places != null && !places.isEmpty()){
             Location l = null;
@@ -67,7 +77,7 @@ public class OpenWeatherService implements WeatherService{
                 return null;
             }
 
-            Weather weather = connector.getWeather(Float.valueOf(l.getLat()), Float.valueOf(l.getLng()), appId);
+            Weather weather = connector.getWeather(Float.valueOf(l.getLat()), Float.valueOf(l.getLng()), appId, myLang);
             return weather;
         }
         return null;
@@ -75,6 +85,6 @@ public class OpenWeatherService implements WeatherService{
 
     @Override
     public Weather getWeather(String place, String city) {
-        return getWeatherOfPlace(place, city);
+        return getWeatherOfPlace(place, city, null);
     }
 }

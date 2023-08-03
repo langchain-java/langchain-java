@@ -13,14 +13,14 @@ import im.langchainjava.location.weather.CurrentWeather;
 import im.langchainjava.location.weather.WeatherNarr;
 import im.langchainjava.location.weather.WeatherService;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.tool.BasicTool;
+import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolOut;
 import im.langchainjava.tool.ToolUtils;
 import im.langchainjava.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class CurrentWeatherTool extends BasicTool{
+public class CurrentWeatherTool extends Tool{
 
     public static String PARAM_PLACE = "place";
     public static String PARAM_CITY = "city";

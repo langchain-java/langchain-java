@@ -47,6 +47,9 @@ public class HttpClientUtil {
             uriBuilder = new URIBuilder(url);
             if(params != null && !params.isEmpty()){
                 for(Entry<String,String> param : params.entrySet()){
+                    if(StringUtil.isNullOrEmpty(param.getValue())){
+                        continue;
+                    }
                     uriBuilder.addParameter(param.getKey(), param.getValue());
                 }
             }

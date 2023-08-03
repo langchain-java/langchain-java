@@ -89,8 +89,11 @@ public class OpenaiChatService implements LlmService{
                 }
                 return null;
             }
+            
             if(handler != null){
-                handler.onAiException(user, new AiResponseException(result.getError().getMessage()));
+                // unknow exception. maybe openai overloaded.
+                // throw an exception can trigger the retry machanism
+                throw new AiResponseException(result.getError().getMessage());
             }
             return null;
         }

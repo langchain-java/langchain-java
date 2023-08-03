@@ -4,25 +4,28 @@ import java.util.List;
 import java.util.function.Function;
 
 import im.langchainjava.agent.command.CommandParser;
+import im.langchainjava.agent.controlledagent.EpisodicAgent;
+import im.langchainjava.agent.controlledagent.EpisodicPromptProvider;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.BasicChatMemory;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.prompt.ChatPromptProvider;
-import im.langchainjava.tool.BasicTool;
 import im.langchainjava.tool.ControllorToolOut;
-import im.langchainjava.tool.ControllorToolOut.Action;
 import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolOut;
 import im.langchainjava.tool.ToolOut.FunctionMessage;
-public abstract class MemoryAgent extends FunctionCallAgent{
+public abstract class MemoryAgent extends EpisodicAgent{
 
     private static int MAX_ROUNDS = 20;
     private static int MAX_FUNCS = 5;
 
-    public MemoryAgent(LlmService llm, ChatPromptProvider prompt, ChatMemoryProvider memory, CommandParser c, List<Tool> tools) {
+    final private ChatMemoryProvider memoryProvider;
+
+    public MemoryAgent(LlmService llm, EpisodicPromptProvider prompt, ChatMemoryProvider memory, CommandParser c, List<Tool> tools) {
         super(llm, prompt, memory, c, tools);
+        this.memoryProvider = memory;
     }
 
     public abstract boolean onAssistantInvoke(String user);
@@ -34,7 +37,7 @@ public abstract class MemoryAgent extends FunctionCallAgent{
     public abstract void onCleardMemory(String user);
 
     @Override
-    public boolean onInvokingAi(String user){
+    public boolean onInvokingAi(String user, boolean isUserTurn){
         if(memoryProvider.incrRoundAndGet(user) >= MAX_ROUNDS){
             onMaxRound(user);
         }
@@ -43,7 +46,7 @@ public abstract class MemoryAgent extends FunctionCallAgent{
             onMaxFunctionCall(user);
         }
 
-        return onAssistantInvoke(user);
+        return super.onInvokingAi(user, isUserTurn);
     }
 
     @Override

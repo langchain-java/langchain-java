@@ -4,8 +4,8 @@ import java.util.List;
 
 import im.langchainjava.agent.command.CommandParser;
 import im.langchainjava.agent.command.CommandParser.Command;
-import im.langchainjava.agent.controlledagent.ControlledAgent;
-import im.langchainjava.agent.controlledagent.ControllerChatPromptProvider;
+import im.langchainjava.agent.controlledagent.EpisodicAgent;
+import im.langchainjava.agent.controlledagent.EpisodicPromptProvider;
 import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.memory.ChatMemoryProvider;
@@ -13,12 +13,12 @@ import im.langchainjava.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ZeroShotThoughtChainAgent extends ControlledAgent{
+public class ZeroShotThoughtChainAgent extends EpisodicAgent{
 
     ImService wechatService;
 
 
-    public ZeroShotThoughtChainAgent(LlmService llm, ControllerChatPromptProvider prompt, ChatMemoryProvider memory, ImService wechat, CommandParser cp, List<Tool> tools) {
+    public ZeroShotThoughtChainAgent(LlmService llm, EpisodicPromptProvider prompt, ChatMemoryProvider memory, ImService wechat, CommandParser cp, List<Tool> tools) {
         super(llm, prompt, memory, cp, tools);
         this.wechatService = wechat;
     }

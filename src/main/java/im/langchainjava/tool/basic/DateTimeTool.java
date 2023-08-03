@@ -15,7 +15,7 @@ import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.location.LocationService;
 import im.langchainjava.location.LocationService.Place;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.tool.BasicTool;
+import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolOut;
 import im.langchainjava.tool.ToolUtils;
 import im.langchainjava.tool.location.SimpleLocationTool;
@@ -24,7 +24,7 @@ import im.langchainjava.tool.location.SimpleLocationTool.LocationOutput;
 import im.langchainjava.utils.DateTimeUtils;
 import im.langchainjava.utils.StringUtil;
 
-public class DateTimeTool extends BasicTool{
+public class DateTimeTool extends Tool{
     
     ImService wechat;
 

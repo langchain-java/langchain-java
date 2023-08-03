@@ -5,6 +5,8 @@ import java.util.function.Function;
 
 import im.langchainjava.agent.MemoryAgent;
 import im.langchainjava.agent.command.CommandParser;
+import im.langchainjava.agent.controlledagent.model.Episode;
+import im.langchainjava.agent.controlledagent.model.Task;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.memory.ChatMemoryProvider;
@@ -18,61 +20,27 @@ import im.langchainjava.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public abstract class ControlledAgent extends MemoryAgent{
-
+public abstract class EpisodicAgent extends MemoryAgent{
     public static String CONTEXT_KEY_FORCE_END_CONVERSATION = "control_force_end";
     public static String CONTEXT_KEY_FORCE_WAIT_USER = "control_force_wait";
 
-    ControllerChatPromptProvider controllerChatPromptProvider;
+    EpisodicPromptProvider episodicPromptProvider;
 
     public abstract void onPartialAnswer(String user);
     public abstract void onMessage(String user, String message);
     public abstract void onWaitUserInput(String user);
     public abstract void onFinalAnswer(String user);
 
-    public ControlledAgent(LlmService llm, ControllerChatPromptProvider prompt, ChatMemoryProvider memory, CommandParser c, List<Tool> tools) {
+    public EpisodicAgent(LlmService llm, EpisodicPromptProvider prompt, ChatMemoryProvider memory, CommandParser c, List<Tool> tools) {
         super(llm, prompt, memory, c, tools);
-        this.controllerChatPromptProvider = prompt;
+        this.episodicPromptProvider = prompt;
     }
 
     @Override
     public boolean onAssistantInvoke(String user){
-        List<ChatMessage> prompt = controllerChatPromptProvider.getControllerPrompt(user);
-        ChatMessage message = null;
-        int retry = 3;
-        while(true){
-            try{
-                message = getLlm().chatCompletion(user, prompt, controllerChatPromptProvider.getControllerFunctions(), controllerChatPromptProvider.getControllerFunctionCall(), this);
-                break;
-            }catch (Exception e){
-                e.printStackTrace();
-                if(--retry <= 0){
-                    onAiException(user, e);
-                    return false;
-                }
-            }
-        }
-
-        if(message == null || message.getFunctionCall() == null){
-            return false;
-        }
-        
-        log.info(JsonUtils.fromObject(message.getFunctionCall()));
-
-        try{
-            ControllorToolOut out = (ControllorToolOut) controllerChatPromptProvider.getInvokableControllerFunction().invoke(user, message.getFunctionCall(), getMemoryProvider());
-            if(out == null){
-                onControllerException(user, "The controller function returns null");
-                return false;
-            }
-            boolean controlled = doControl(user, out); 
-            setContext(user, CONTEXT_KEY_FORCE_WAIT_USER, Boolean.FALSE);
-            return controlled;
-        }catch(Exception e){
-            e.printStackTrace();
-            onControllerException(user, "There is an exception while invoking controller function.\n" + e.getMessage());
-            return false;
-        }
+        // init an episodic memory
+        // this.episodicPromptProvider.initEpisode(user);
+        return true;
     }
 
 
@@ -139,7 +107,47 @@ public abstract class ControlledAgent extends MemoryAgent{
         if(content != null){
             onMessage(user, content);
             setContext(user, CONTEXT_KEY_FORCE_WAIT_USER, Boolean.TRUE);
+            return;
         }
+
+
+        List<ChatMessage> prompt = episodicPromptProvider.getControllerPrompt(user);
+        ChatMessage message = null;
+        int retry = 3;
+        while(true){
+            try{
+                message = getLlm().chatCompletion(user, prompt, controllerChatPromptProvider.getControllerFunctions(), episodicPromptProvider.getControllerFunctionCall(), this);
+                break;
+            }catch (Exception e){
+                e.printStackTrace();
+                if(--retry <= 0){
+                    onAiException(user, e);
+                    return false;
+                }
+            }
+        }
+
+        if(message == null || message.getFunctionCall() == null){
+            return false;
+        }
+        
+        log.info(JsonUtils.fromObject(message.getFunctionCall()));
+
+        try{
+            ControllorToolOut out = (ControllorToolOut) episodicPromptProvider.getInvokableControllerFunction().invoke(user, message.getFunctionCall(), getMemoryProvider());
+            if(out == null){
+                onControllerException(user, "The controller function returns null");
+                return false;
+            }
+            boolean controlled = doControl(user, out); 
+            setContext(user, CONTEXT_KEY_FORCE_WAIT_USER, Boolean.FALSE);
+            return controlled;
+        }catch(Exception e){
+            e.printStackTrace();
+            onControllerException(user, "There is an exception while invoking controller function.\n" + e.getMessage());
+            return false;
+        }
+
     }
 
     @Override

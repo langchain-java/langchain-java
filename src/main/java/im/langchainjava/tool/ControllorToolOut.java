@@ -8,17 +8,18 @@ import lombok.Getter;
 public class ControllorToolOut extends AgentToolOut{
 
     @Getter
-    final Action action;
+    final Status status;
 
-    public ControllorToolOut(String user, List<ToolOutHandler> handlers, Map<String, ToolOutHandler> handlerMap, Action action){
+    public ControllorToolOut(String user, List<ToolOutHandler> handlers, Map<String, ToolOutHandler> handlerMap, Status status){
         super(user, handlers, handlerMap);
-        this.action = action;
+        this.status = status;
     }
 
-    public static enum Action{ 
-        waitUserInput,
-        endConversation,
-        finalAnswer,
+    public static enum Status{ 
+        success,
+        failed,
+        wait,
+        halt,
         next;
     }
 }

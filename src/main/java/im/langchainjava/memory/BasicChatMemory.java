@@ -9,12 +9,12 @@ import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.utils.JsonUtils;
 
-public class BasicChatMemory implements ChatMemoryProvider{
+import static im.langchainjava.llm.LlmService.ROLE_ASSIS;
+import static im.langchainjava.llm.LlmService.ROLE_FUNC;
+import static im.langchainjava.llm.LlmService.ROLE_SYSTEM;
+import static im.langchainjava.llm.LlmService.ROLE_USER;
 
-    public static String ROLE_SYSTEM="system";
-    public static String ROLE_USER="user";
-    public static String ROLE_ASSIS="assistant";
-    public static String ROLE_FUNC="function";
+public class BasicChatMemory implements ChatMemoryProvider{
     
     private Map<String, ChatMemory> chats = new ConcurrentHashMap<>();
 

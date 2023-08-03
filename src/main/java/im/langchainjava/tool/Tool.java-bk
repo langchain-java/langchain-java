@@ -1,0 +1,12 @@
+// package im.langchainjava.tool;
+
+// import im.langchainjava.llm.entity.function.FunctionCall;
+// import im.langchainjava.memory.ChatMemoryProvider;
+
+// public interface Tool {
+    
+//     public im.langchainjava.llm.entity.function.Function getFunction();
+//     public im.langchainjava.llm.entity.function.FunctionCall getFunctionCall();
+//     public ToolOut invoke(String user, FunctionCall action, ChatMemoryProvider context);
+
+// }

@@ -17,7 +17,7 @@ import im.langchainjava.location.LocationService;
 import im.langchainjava.location.LocationService.Location;
 import im.langchainjava.location.LocationService.Place;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.tool.BasicTool;
+import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolOut;
 import im.langchainjava.tool.ToolUtils;
 import im.langchainjava.utils.JsonUtils;
@@ -28,7 +28,7 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class SimpleLocationTool extends BasicTool{
+public class SimpleLocationTool extends Tool{
 
     public static int NUM_RESULT = 5;
 
