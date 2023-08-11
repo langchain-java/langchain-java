@@ -14,8 +14,11 @@ import im.langchainjava.location.weather.WeatherNarr;
 import im.langchainjava.location.weather.WeatherService;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.tool.Tool;
+import im.langchainjava.tool.ToolDependency;
 import im.langchainjava.tool.ToolOut;
+import im.langchainjava.tool.ToolOuts;
 import im.langchainjava.tool.ToolUtils;
+import im.langchainjava.tool.askuser.form.FormBuilders;
 import im.langchainjava.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,21 +26,24 @@ import lombok.extern.slf4j.Slf4j;
 public class CurrentWeatherTool extends Tool{
 
     public static String PARAM_PLACE = "place";
+    public static String PARAM_DESC_PLACE = "The place name (in Chinese) to look up its address.";
     public static String PARAM_CITY = "city";
+    public static String PARAM_DESC_CITY = "The city name (in Chinese) of the place in the query.";
 
-    ImService wechat;
+    ImService im;
 
     WeatherService weatherService;
 
-    // LlmService llm;
+    LlmService llm;
 
     // int number;
 
-    public CurrentWeatherTool(ImService wechat, WeatherService weatherService, LlmService llm){
-        // super(memory);
-        this.wechat = wechat;
+    public CurrentWeatherTool(ImService im, WeatherService weatherService, LlmService llm){
+        this.im = im;
         this.weatherService = weatherService;
-        // this.llm = llm;
+        this.llm = llm;
+        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_CITY, PARAM_DESC_CITY));
+        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_PLACE, PARAM_DESC_PLACE));
     }
 
     // public CurrentWeatherTool numberOfResults(int num){
@@ -55,27 +61,27 @@ public class CurrentWeatherTool extends Tool{
         return  "Get the current weather of a given place.";
     }
 
-    @Override
-    public Map<String, FunctionProperty> getProperties() {
-        FunctionProperty cityProperty = FunctionProperty.builder()
-                .description("The Chinese name of the city of the place to query. Could not be blank, empty or null.")
-                .build();
-        FunctionProperty placeProperty = FunctionProperty.builder()
-                .description("The place (in Chinese) to look up its address. Could not be blank, empty or null.")
-                .build();
-        Map<String, FunctionProperty> properties = new HashMap<>();
-        properties.put(PARAM_CITY, cityProperty);
-        properties.put(PARAM_PLACE, placeProperty);
-        return properties;
-    }
+    // @Override
+    // public Map<String, FunctionProperty> getProperties() {
+    //     FunctionProperty cityProperty = FunctionProperty.builder()
+    //             .description("The Chinese name of the city of the place to query. Could not be blank, empty or null.")
+    //             .build();
+    //     FunctionProperty placeProperty = FunctionProperty.builder()
+    //             .description("The place (in Chinese) to look up its address. Could not be blank, empty or null.")
+    //             .build();
+    //     Map<String, FunctionProperty> properties = new HashMap<>();
+    //     properties.put(PARAM_CITY, cityProperty);
+    //     properties.put(PARAM_PLACE, placeProperty);
+    //     return properties;
+    // }
 
-    @Override
-    public List<String> getRequiredProperties() {
-        List<String> required = new ArrayList<>();
-        required.add(PARAM_CITY);
-        required.add(PARAM_PLACE);
-        return required;
-    }
+    // @Override
+    // public List<String> getRequiredProperties() {
+    //     List<String> required = new ArrayList<>();
+    //     required.add(PARAM_CITY);
+    //     required.add(PARAM_PLACE);
+    //     return required;
+    // }
 
     @Override
     public ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory) {
@@ -83,10 +89,10 @@ public class CurrentWeatherTool extends Tool{
             String place = ToolUtils.getStringParam(call, PARAM_PLACE);
             String city = ToolUtils.getStringParam(call, PARAM_CITY);
             String query = city + place;
-            wechat.sendMessageToUser(user, "[当前天气]\n正在查找" + query + "的天气情况。"); 
+            im.sendMessageToUser(user, "[当前天气]\n正在查找" + query + "的天气情况。"); 
 
             if(StringUtil.isNullOrEmpty(city)){
-                return invalidParameter(user, "function input " + PARAM_CITY + " can not be empty.");
+                return ToolOuts.invalidParameter(user, "function input " + PARAM_CITY + " can not be empty.");
             }
             // if(StringUtil.isNullOrEmpty(place)){
             //     return invalidParameter(user, "function input " + PARAM_PLACE + " can not be empty.");
@@ -108,16 +114,35 @@ public class CurrentWeatherTool extends Tool{
                     }
                 }
                 String msg = sb.toString();
-                wechat.sendMessageToUser(user, msg);
-                return onResult(user, msg);
+                im.sendMessageToUser(user, msg);
+                return ToolOuts.onResult(user, msg);
             }
-            
-            wechat.sendMessageToUser(user, "[当前天气]" + query + "\n没有找到任何结果。"); 
-            return onEmptyResult(user);
+           
+            String msg = "[当前天气]" + query + "\n没有找到任何结果。";
+            im.sendMessageToUser(user, msg); 
+            return ToolOuts.onEmptyResult(user, msg);
 
         }catch(Exception e){
-            return onToolError(user);
+            return ToolOuts.onToolError(user, "调用当前天气发生错误：" + e.getMessage());
         }
+    }
+
+    @Override
+    public Map<String, FunctionProperty> getProperties() {
+        // This method will not be used.
+        throw new UnsupportedOperationException("Unimplemented method 'getProperties'");
+    }
+
+    @Override
+    public List<String> getRequiredProperties() {
+        // This method will not be used.
+        throw new UnsupportedOperationException("Unimplemented method 'getRequiredProperties'");
+    }
+
+    @Override
+    public Map<String, ToolDependency> getDependencies() {
+        // This method will not be used.
+        throw new UnsupportedOperationException("Unimplemented method 'getDependencies'");
     }
 
 }

@@ -152,4 +152,9 @@ public class BasicChatMemory implements ChatMemoryProvider{
         return getMemory(user).incrFunctionCallAndGet();
     }
 
+    @Override
+    public void onReceiveMessage(String user, ChatMessage message) {
+        getMemory(user).addPendingMessage(message);
+    }
+
 }

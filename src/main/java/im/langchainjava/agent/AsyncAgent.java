@@ -105,7 +105,7 @@ public abstract class AsyncAgent implements LlmErrorHandler{
         while(true){
 
             if(showPrompt){
-                showMessages(promptProvider.getPrompt(user));
+                showMessages("agent", promptProvider.getPrompt(user));
             }
 
             if(!onInvokingAi(user, isUserTurn)){
@@ -121,6 +121,7 @@ public abstract class AsyncAgent implements LlmErrorHandler{
             }
             
             boolean next = onAiResponse(user, chatMessage, isUserTurn);
+            
             isUserTurn = false;
             
             if(!next){
@@ -129,8 +130,8 @@ public abstract class AsyncAgent implements LlmErrorHandler{
         }
     }
 
-    public void showMessages(List<ChatMessage> messages){
-        System.out.println("-----------Prompt:-------------");
+    public void showMessages(String id, List<ChatMessage> messages){
+        System.out.println("-----------Prompt:-------------" + id);
         for(ChatMessage m : messages){
             String message = m.getContent();
             if(m.getFunctionCall() != null){

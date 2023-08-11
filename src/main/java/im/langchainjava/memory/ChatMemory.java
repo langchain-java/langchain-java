@@ -97,6 +97,15 @@ public class ChatMemory{
         updateTimestamp();
     }
 
+    
+    public void addPendingMessage(ChatMessage message){
+        if(message != null){
+            this.pending.add(message);   
+            updateTimestamp();
+        }
+    }
+
+
     public void addEndingMessageForRole(String role, String message){
         this.ending.add(new ChatMessage(role, message));   
         updateTimestamp();

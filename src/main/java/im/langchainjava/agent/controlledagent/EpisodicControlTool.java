@@ -64,29 +64,29 @@ public class EpisodicControlTool extends Tool{
     @Override
     public ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory) {
         
-        if(this.task.getExtractions() == null || this.task.getExtractions().isEmpty()){
-            String msg = "Extractions are not set for task " + this.task.getName();
-            log.error(msg);
-            throw new EpisodeException(msg);
-        }
+        Asserts.assertTrue(this.task.getExtractions() != null && !this.task.getExtractions().isEmpty(), "Extractions are not set for task " + this.task.getName());
 
-        for(Entry<String, String> e : this.task.getExtractions().entrySet()){
-            String paramName = e.getKey();
-    
-            String paramValue = ToolUtils.getStringParam(call, paramName);
-    
-            if(StringUtil.isNullOrEmpty(paramValue)){
-                return ToolOuts.failed(user, null, null);
+        Map<String, String> output = new HashMap<>();
+        for(Entry<String, String> e : task.getExtractions().entrySet()){
+            String key = e.getKey();
+            if(key == null){
+                continue;
             }
+            String val = ToolUtils.getStringParam(call, key);
+
+            if(StringUtil.isNullOrEmpty(val)){
+                continue;
+            }
+
+            output.put(key, val);
         }
-        return ToolOuts.success(user, null, null);
 
-    }
+        if(output.size() < task.getExtractions().size()){
+            // some progress is made, but not finished yet.
+            return ToolOuts.next(user, output);
+        }
+        return ToolOuts.success(user, output);
 
-    @Override
-    public String getTag() {
-        // this method is only implemented for agent tools, this is a controller tool.
-        throw new UnsupportedOperationException("Unimplemented method 'getTag'");
     }
 
     @Override

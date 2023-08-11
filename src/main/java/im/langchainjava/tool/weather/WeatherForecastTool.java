@@ -15,8 +15,11 @@ import im.langchainjava.location.weather.WeatherNarr;
 import im.langchainjava.location.weather.WeatherService;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.tool.Tool;
+import im.langchainjava.tool.ToolDependency;
 import im.langchainjava.tool.ToolOut;
+import im.langchainjava.tool.ToolOuts;
 import im.langchainjava.tool.ToolUtils;
+import im.langchainjava.tool.askuser.form.FormBuilders;
 import im.langchainjava.utils.DateTimeUtils;
 import im.langchainjava.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -25,24 +28,28 @@ import lombok.extern.slf4j.Slf4j;
 public class WeatherForecastTool extends Tool{
 
     public static String PARAM_PLACE = "place";
+    public static String PARAM_DESC_PLACE = "The place name (in Chinese) to look up its address.";
     public static String PARAM_CITY = "city";
+    public static String PARAM_DESC_CITY = "The city name (in Chinese) of the place in the query.";
     public static String PARAM_DATE = "date";
+    public static String PARAM_DESC_DATE = "The date of the weather forecast. Must be in formate `yyyyMMdd`. Example is: 20220718";
 
     public static long TIME_ONEDAY_SEC = 24 * 60 * 60;
 
-    ImService wechat;
+    ImService im;
 
     WeatherService weatherService;
 
-    // LlmService llm;
+    LlmService llm;
 
-    // int number;
-
-    public WeatherForecastTool(ImService wechat, WeatherService weatherService, LlmService llm){
-        // super(memory);
-        this.wechat = wechat;
+    public WeatherForecastTool(ImService im, WeatherService weatherService, LlmService llm){
+        this.im = im;
         this.weatherService = weatherService;
-        // this.llm = llm;
+        this.llm = llm;
+
+        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_CITY, PARAM_DESC_CITY));
+        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_PLACE, PARAM_DESC_PLACE));
+        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_DATE, PARAM_DESC_DATE));
     }
 
     // public CurrentWeatherTool numberOfResults(int num){
@@ -60,32 +67,32 @@ public class WeatherForecastTool extends Tool{
         return  "Get weather forecast for a given date of a given place.";
     }
 
-    @Override
-    public Map<String, FunctionProperty> getProperties() {
-        FunctionProperty cityProperty = FunctionProperty.builder()
-                .description("The Chinese name of the city of the place to query. Could not be empty or null.")
-                .build();
-        FunctionProperty placeProperty = FunctionProperty.builder()
-                .description("The place (in Chinese) to look up its address. Could not be empty or null.")
-                .build();
-        FunctionProperty dateProperty = FunctionProperty.builder()
-                .description("The date of the weather forecast. Must be in formate `yyyyMMdd`. Example is: 20220718")
-                .build();
-        Map<String, FunctionProperty> properties = new HashMap<>();
-        properties.put(PARAM_CITY, cityProperty);
-        properties.put(PARAM_PLACE, placeProperty);
-        properties.put(PARAM_DATE, dateProperty);
-        return properties;
-    }
+    // @Override
+    // public Map<String, FunctionProperty> getProperties() {
+    //     FunctionProperty cityProperty = FunctionProperty.builder()
+    //             .description("The Chinese name of the city of the place to query. Could not be empty or null.")
+    //             .build();
+    //     FunctionProperty placeProperty = FunctionProperty.builder()
+    //             .description("The place (in Chinese) to look up its address. Could not be empty or null.")
+    //             .build();
+    //     FunctionProperty dateProperty = FunctionProperty.builder()
+    //             .description("The date of the weather forecast. Must be in formate `yyyyMMdd`. Example is: 20220718")
+    //             .build();
+    //     Map<String, FunctionProperty> properties = new HashMap<>();
+    //     properties.put(PARAM_CITY, cityProperty);
+    //     properties.put(PARAM_PLACE, placeProperty);
+    //     properties.put(PARAM_DATE, dateProperty);
+    //     return properties;
+    // }
 
-    @Override
-    public List<String> getRequiredProperties() {
-        List<String> required = new ArrayList<>();
-        required.add(PARAM_CITY);
-        required.add(PARAM_PLACE);
-        required.add(PARAM_DATE);
-        return required;
-    }
+    // @Override
+    // public List<String> getRequiredProperties() {
+    //     List<String> required = new ArrayList<>();
+    //     required.add(PARAM_CITY);
+    //     required.add(PARAM_PLACE);
+    //     required.add(PARAM_DATE);
+    //     return required;
+    // }
 
     @Override
     public ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory) {
@@ -94,19 +101,19 @@ public class WeatherForecastTool extends Tool{
             String city = ToolUtils.getStringParam(call, PARAM_CITY);
 
             if(StringUtil.isNullOrEmpty(city)){
-                return invalidParameter(user, "function input " + PARAM_CITY + " can not be empty.");
+                return ToolOuts.invalidParameter(user, "function input " + PARAM_CITY + " can not be empty.");
             }
             // if(StringUtil.isNullOrEmpty(place)){
             //     return invalidParameter(user, "function input " + PARAM_PLACE + " can not be empty.");
             // }
             String date = ToolUtils.getStringParam(call, PARAM_DATE);
             if(StringUtil.isNullOrEmpty(date)){
-                return invalidParameter(user, "function input " + PARAM_DATE + " can not be empty.");
+                return ToolOuts.invalidParameter(user, "function input " + PARAM_DATE + " can not be empty.");
             }
             
             String query = city + place + " " + date;
             Weather weather = weatherService.getWeather(place, city);
-            wechat.sendMessageToUser(user, "[天气预报]\n正在查找 " + query + " 的天气情况。"); 
+            im.sendMessageToUser(user, "[天气预报]\n正在查找 " + query + " 的天气情况。"); 
             StringBuilder sb = new StringBuilder();
             if(weather != null && weather.getDaily() != null && !weather.getDaily().isEmpty()){
                 List<DailyWeather> daily = weather.getDaily();
@@ -114,8 +121,8 @@ public class WeatherForecastTool extends Tool{
                 int diff = DateTimeUtils.getDayDiff(date, timezoneOffset);
                 if(diff >= daily.size() || diff < 0){
                     String msg = "[天气预报]" + query + "\n超出天气预报范围（仅支持未来7天）。";
-                    wechat.sendMessageToUser(user, msg); 
-                    return onEmptyResult(user, msg);
+                    im.sendMessageToUser(user, msg); 
+                    return ToolOuts.onEmptyResult(user, msg);
                 }
 
                 DailyWeather w = daily.get(diff);
@@ -136,16 +143,35 @@ public class WeatherForecastTool extends Tool{
                     }
                 }
                 String msg = sb.toString();
-                wechat.sendMessageToUser(user, msg);
-                return onResult(user, msg);
+                im.sendMessageToUser(user, msg);
+                return ToolOuts.onResult(user, msg);
             }
             
-            wechat.sendMessageToUser(user, "[天气预报]" + query + "\n没有找到任何结果。"); 
-            return onEmptyResult(user);
+            String msg = "[天气预报]" + query + "\n没有找到任何结果。";
+            im.sendMessageToUser(user, msg); 
+            return ToolOuts.onEmptyResult(user, msg);
 
         }catch(Exception e){
-            return onToolError(user);
+            return ToolOuts.onToolError(user, "调用天气预报发生错误：" + e.getMessage());
         }
+    }
+
+    @Override
+    public Map<String, FunctionProperty> getProperties() {
+        // This method is never be used.
+        throw new UnsupportedOperationException("Unimplemented method 'getProperties'");
+    }
+
+    @Override
+    public List<String> getRequiredProperties() {
+        // This method is never be used.
+        throw new UnsupportedOperationException("Unimplemented method 'getRequiredProperties'");
+    }
+
+    @Override
+    public Map<String, ToolDependency> getDependencies() {
+        // This method is never be used.
+        throw new UnsupportedOperationException("Unimplemented method 'getDependencies'");
     }
 
 }

@@ -1,71 +1,45 @@
 package im.langchainjava.tool;
 
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
+import lombok.Getter;
 
 public class AgentToolOut implements ToolOut{
+
+    @Getter
+    final AgentToolOutStatus status;
+
+    @Getter
+    final ControlSignal control;
+
     final String user;
-    final Map<String ,ToolOutHandler> handlerMap;
-    final List<ToolOutHandler> handlers;
 
-    public AgentToolOut(String user, List<ToolOutHandler> handlers, Map<String, ToolOutHandler> handlerMap){
+    @Getter
+    final String output;
+
+    public AgentToolOut(String user, AgentToolOutStatus status, String out){
         this.user = user;
-        this.handlerMap = handlerMap;
-        this.handlers = handlers;
+        this.status = status;
+        this.output = out;
+        this.control = null;
     }
 
-    @Override
-    public ToolOut handlerForKey(String key, Function<FunctionMessage, Void> handler){
-        ToolOutHandler h = null;
-        if(!handlerMap.containsKey(key)){
-            return this;
-        }
-        h = handlerMap.get(key);
-        h.func = handler;
-        return this;
+    public AgentToolOut(String user, AgentToolOutStatus status, ControlSignal control, String out){
+        this.user = user;
+        this.status = status;
+        this.output = out;
+        this.control = control;
     }
 
-    @Override
-    public void run() {
-
-        if(this.handlers == null || this.handlers.isEmpty()){
-            return;
-        }
-
-        runHandlers(user, handlers);
-        
+    public static enum ControlSignal{
+        form,
+        finish;        
     }
 
-    static void runHandlers(String user, List<ToolOutHandler> handlers){
-        runHandlers(user, handlers, null);
+    public static enum AgentToolOutStatus{
+        control,
+        invalideParam,
+        success,
+        empty,
+        error;
     }
 
-    static void runHandlers(String user, List<ToolOutHandler> handlers, FunctionMessage in){
-        for(ToolOutHandler h : handlers){
-            if(h == null){
-                continue;
-            }
-            Function<FunctionMessage, Void> fun = h.getFunc();
-            if(fun == null){
-                continue;
-            }
-
-            FunctionMessage input = in;
-            if(in == null){
-                String message = h.getMessage();
-                input = new FunctionMessage(user, message);
-            }
-
-            fun.apply(input);
-        }
-    }
-
-    @Override
-    public String getMessageForKey(String key) {
-        if(this.handlerMap.get(key) != null){
-            this.handlerMap.get(key).getMessage();
-        }
-        return null;
-    }
 }

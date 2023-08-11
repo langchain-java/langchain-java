@@ -1,18 +1,28 @@
 package im.langchainjava.tool;
 
-import java.util.List;
 import java.util.Map;
 
 import lombok.Getter;
 
-public class ControllorToolOut extends AgentToolOut{
+public class ControllorToolOut implements ToolOut{
+
+    @Getter
+    final String user;
 
     @Getter
     final Status status;
 
-    public ControllorToolOut(String user, List<ToolOutHandler> handlers, Map<String, ToolOutHandler> handlerMap, Status status){
-        super(user, handlers, handlerMap);
+    @Getter
+    final Map<String, String> output;
+
+    @Getter
+    final String error;
+
+    public ControllorToolOut(String user, Status status, Map<String, String> output, String error){
         this.status = status;
+        this.user = user;
+        this.output = output;
+        this.error = error;
     }
 
     public static enum Status{ 

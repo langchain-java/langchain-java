@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import im.langchainjava.agent.controlledagent.model.Episode;
 import im.langchainjava.agent.controlledagent.model.Task;
 import im.langchainjava.agent.controlledagent.model.TaskBuilder;
-import im.langchainjava.agent.functioncall.TaskFunctionCallPair;
 import im.langchainjava.agent.functioncall.TaskSolver;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.ChatMemoryProvider;
@@ -20,7 +19,7 @@ import lombok.NonNull;
 
 public class EpisodeSolver implements TaskSolver{
 
-    public static String CONTEXT_KEY_TASK = "eposide";
+    public static String CONTEXT_KEY_TASK = "episode";
 
     final TaskBuilder initialTaskBuilder;
     final ChatMemoryProvider memory;
@@ -44,6 +43,7 @@ public class EpisodeSolver implements TaskSolver{
 
         //pick up from what's left
         Task task = e.getCurrentTask();
+        //skip optional tasks
         while(task != null && taskIsPassed(task)){
             task = e.popCurrentTaskAndGetNext();
         }
@@ -58,7 +58,7 @@ public class EpisodeSolver implements TaskSolver{
         Task solvedTask = null;
         if(task.getInputs() != null){
             for(Task t : task.getInputs().values()){
-                // the success dependencies does not need to solve again.
+                // the successful dependencies does not need to solve again.
                 if(taskIsPassed(t)){
                     continue;
                 }
@@ -78,22 +78,21 @@ public class EpisodeSolver implements TaskSolver{
         }
 
         return task;
-
     }
 
     public Episode getEpisode(String user){
         Episode episode = (Episode) memory.getContextForUser(user, CONTEXT_KEY_TASK, null);
         if(episode == null){
             // init a root task if there is no episode. (This happens only at the start of the episode)
-            Task initialTask = this.initialTaskBuilder.build();
-            episode = new Episode(initialTask);
-            memory.setContextForUser(user, CONTEXT_KEY_TASK, initialTask);
+            List<Task> initialTasks = this.initialTaskBuilder.build();
+            episode = new Episode(initialTasks);
+            memory.setContextForUser(user, CONTEXT_KEY_TASK, episode);
         }
         return episode;
     }
 
     private boolean taskIsPassed(Task task){
-        return (task == null || task.isSuccess() || (task.isFailed() && task.isOptional()));
+        return (task == null || task.isSuccess() || task.isOptional());
     }
 
     @Override
@@ -101,31 +100,20 @@ public class EpisodeSolver implements TaskSolver{
         
         Asserts.assertTrue(call != null && call.getName() != null, "Function call is null or without a name.");
         Asserts.assertTrue(this.tools.containsKey(call.getName()), "There is no tool matching function call " + call.getName() + ".");
+
         Tool t = tools.get(call.getName());
 
         Map<String, String> extractions = new HashMap<>();
-        appendExtraction(extractions, t.getExtractionName(), t.getExtraction());
-        Map<String, Object> param = new HashMap<>();
+        extractions.put(t.getExtractionName(), t.getExtraction());
+        Map<String, String> param = new HashMap<>();
         for(Entry<String, JsonNode> e : call.getParsedArguments().entrySet()){
-            param.put(e.getKey(), e.getValue());
+            param.put(e.getKey(), e.getValue().asText());
         }
 
-        Task task = new Task(t, param, t.getTag(), extractions, false);
+        Task task = new Task(t, param, extractions, false);
         
         getEpisode(user).addTask(task);
         return this.solveCurrentTask(user);
     }
-
-    @Override
-    public Task solveMessage(String user, String message) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'solveMessage'");
-    }
     
-    private void appendExtraction(@NonNull Map<String,String> extractions, @NonNull String name, @NonNull String extraction){
-        extractions.put(name, extraction);
-    }
-
-
-
 }

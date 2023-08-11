@@ -2,6 +2,7 @@ package im.langchainjava.agent.functioncall;
 
 import im.langchainjava.agent.CommandAgent;
 import im.langchainjava.agent.command.CommandParser;
+import im.langchainjava.agent.controlledagent.EpisodeException;
 import im.langchainjava.agent.controlledagent.model.Task;
 import im.langchainjava.agent.exception.AiResponseException;
 import im.langchainjava.agent.exception.FunctionCallException;
@@ -10,6 +11,7 @@ import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.prompt.ChatPromptProvider;
+import im.langchainjava.tool.AgentToolOut;
 import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolOut;
 import im.langchainjava.utils.StringUtil;
@@ -23,33 +25,39 @@ public abstract class FunctionCallAgent extends CommandAgent{
     public FunctionCallAgent(LlmService llm, ChatPromptProvider prompt, ChatMemoryProvider memory, CommandParser c, TaskSolver solver){
         super(llm, prompt, memory, c);
         this.solver = solver;
-        // this.tools = new HashMap<>();
-        // for(Tool t: tools){
-        //     this.tools.put(t.getFunction().getName(), t);
-        // }
     }
 
     public abstract boolean onMessage(String user, String message, boolean isUserTurn);
 
-    public abstract boolean onFunctionCallResult(String user, FunctionCall functionCall, ToolOut functionOut, boolean isUserTurn);
+    public abstract boolean onFunctionCallResult(String user, Tool tool, FunctionCall functionCall, AgentToolOut functionOut, boolean isUserTurn);
     
-    public abstract boolean onFunctionCallException(String user, Exception e, boolean isUserTurn);
+    public abstract boolean onFunctionCallException(String user, FunctionCall functionCall, Exception e, boolean isUserTurn);
 
-    public abstract boolean onFunctionExecutionException(String user, Tool t, Exception e, boolean isUserTurn);
+    public abstract boolean onFunctionExecutionException(String user, Tool t, FunctionCall functionCall, Exception e, boolean isUserTurn);
 
     @Override
     public boolean onAiResponse(String user, ChatMessage message, boolean isUserTurn){
         if(message.getFunctionCall() != null){
             FunctionCall call = message.getFunctionCall();
-            Task task = solver.solveFunctionCall(user, call);
-            
-            if(tfp == null || tfp.getCall() == null || tfp.getTask() == null){
-                return onFunctionCallException(user, new FunctionCallException("Can not resolve tool for function call " + call.getName() + "."), isUserTurn);
+
+            Task task = null;
+            try{
+                task = solver.solveFunctionCall(user, call);
+            }catch(EpisodeException e){
+                return onFunctionCallException(user, call, e, isUserTurn);
             }
-            if(tfp.getTask().getFunction() == null){
-                return onFunctionCallException(user, new FunctionCallException("The tool in task " + tfp.getTask().getName() + " is null."), isUserTurn);
+
+            if(task == null){
+                return onFunctionCallException(user, call, new EpisodeException("The resolved task is null on new function call task."), isUserTurn);
             }
-            return handleFunctionCall(user, tfp.getTask().getFunction(), tfp.getCall(), isUserTurn);
+                
+            Tool func = task.getFunction();
+
+            if(func == null){
+                return onFunctionCallException(user, call, new EpisodeException("The resolved function call task has no function in it."), isUserTurn);
+            }
+
+            return handleFunctionCall(user, func, call, isUserTurn);
         }
 
         if(StringUtil.isNullOrEmpty(message.getContent())){
@@ -66,11 +74,14 @@ public abstract class FunctionCallAgent extends CommandAgent{
             onFunctionCall(user, call, isUserTurn);
             ToolOut toolOut = tool.invoke(user, call, getMemoryProvider());
             if(toolOut == null){
-                return onFunctionExecutionException(user, tool, new FunctionCallException("Function call "+ tool.getFunction().getName() + " returns null!"), isUserTurn);
+                return onFunctionExecutionException(user, tool, call, new FunctionCallException("Function call "+ tool.getFunction().getName() + " returns null."), isUserTurn);
             }
-            return onFunctionCallResult(user, call, toolOut, isUserTurn);
+            if(!(toolOut instanceof AgentToolOut)){
+                return onFunctionExecutionException(user, tool, call, new FunctionCallException("Function call "+ tool.getFunction().getName() + " does not return a agent tool out object."), isUserTurn);
+            }
+            return onFunctionCallResult(user, tool, call, (AgentToolOut) toolOut, isUserTurn);
         }catch(Exception e){
-            return onFunctionExecutionException(user, tool, e, isUserTurn);
+            return onFunctionExecutionException(user, tool, call, e, isUserTurn);
         }
         
     }

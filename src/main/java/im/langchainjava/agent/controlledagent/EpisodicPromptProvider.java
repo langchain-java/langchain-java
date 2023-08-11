@@ -1,12 +1,13 @@
 package im.langchainjava.agent.controlledagent;
 
-import static im.langchainjava.memory.BasicChatMemory.ROLE_SYSTEM;
+import static im.langchainjava.llm.LlmService.ROLE_SYSTEM;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import im.langchainjava.agent.controlledagent.model.Task;
@@ -14,8 +15,6 @@ import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.Function;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.prompt.ChatPromptProvider;
-import im.langchainjava.tool.Tool;
-import im.langchainjava.utils.JsonUtils;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -87,7 +86,27 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
         Asserts.assertTrue(task != null, "Current Task is null while getting history.");
         Asserts.assertTrue(!task.isFailed(), "Episode is failed while getting history.");
         Asserts.assertTrue(task.getHistory() != null && !task.getHistory().isEmpty(), "There is no chat history in the task while getting history.");
-        return task.getHistory();
+        return getEpisodicHistoryForTask(user, task);
+    }
+
+    public List<ChatMessage> getEpisodicHistoryForTask(String user, Task task){
+        List<ChatMessage> history = new ArrayList<>();
+        StringBuilder prefixBuilder = new StringBuilder();
+        prefixBuilder.append("Below are some values you already known:\r\n\"\"\"\r\n");
+        for(Entry<String, Task> e : task.getInputs().entrySet()){
+            Map<String, String> taskResult = e.getValue().getResult();
+            if(taskResult == null || taskResult.isEmpty()){
+                continue;
+            }
+            for(Entry<String, String> tr : taskResult.entrySet()){
+                prefixBuilder.append("`" + tr.getKey() + "` = " + tr.getValue()).append("\r\n");
+            }
+        }
+        prefixBuilder.append("\"\"\"\r\n");
+        ChatMessage prefix = new ChatMessage(ROLE_SYSTEM, prefixBuilder.toString(), user, null);
+        history.add(prefix);
+        history.addAll(task.getHistory());
+        return history;
     }
 
 }

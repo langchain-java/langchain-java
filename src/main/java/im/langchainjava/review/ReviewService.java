@@ -8,11 +8,11 @@ import im.langchainjava.review.model.Review;
 
 public interface ReviewService {
     
-    public static enum Category{
+    public static enum CategoryEnum{
         hotels,attractions, restaurants, geos
     } 
 
-    List<Location> searchLocations(String query, Category category, String address, String phone);
+    List<Location> searchLocations(String query, CategoryEnum category, String address, String phone);
 
     LocationDetail getLocationDetails(String locationId);
 

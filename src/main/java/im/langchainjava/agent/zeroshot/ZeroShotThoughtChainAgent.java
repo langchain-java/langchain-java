@@ -2,9 +2,9 @@ package im.langchainjava.agent.zeroshot;
 
 import java.util.List;
 
+import im.langchainjava.agent.MemoryAgent;
 import im.langchainjava.agent.command.CommandParser;
 import im.langchainjava.agent.command.CommandParser.Command;
-import im.langchainjava.agent.controlledagent.EpisodicAgent;
 import im.langchainjava.agent.controlledagent.EpisodicPromptProvider;
 import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
@@ -13,7 +13,7 @@ import im.langchainjava.tool.Tool;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ZeroShotThoughtChainAgent extends EpisodicAgent{
+public class ZeroShotThoughtChainAgent extends MemoryAgent{
 
     ImService wechatService;
 
@@ -26,7 +26,7 @@ public class ZeroShotThoughtChainAgent extends EpisodicAgent{
     @Override
     public void onCommand(String user, Command command) {
         if(command.getCommand().equals("clear")){
-            endConversation(user);
+            super.endConversation(user);
             return;
         }
         this.wechatService.sendMessageToUser(user, "[help]\n #clear: clears the chatbot memory.");
@@ -60,7 +60,7 @@ public class ZeroShotThoughtChainAgent extends EpisodicAgent{
     @Override
     public void onMaxTokenExceeded(String user) {
         wechatService.sendMessageToUser(user, "[系统]\n大模型记忆已经撑爆无法继续思考。");
-        super.onMaxTokenExceeded(user);
+        endConversation(user);
     }
 
     @Override
@@ -69,8 +69,10 @@ public class ZeroShotThoughtChainAgent extends EpisodicAgent{
     }
 
     @Override
-    public void onMessage(String user, String message) {
-        wechatService.sendMessageToUser(user, message);
+    public void onAssistantResponsed(String user, String message, boolean isAssisMessage) {
+        if(isAssisMessage){
+            wechatService.sendMessageToUser(user, message);
+        }
     }
 
     @Override
@@ -81,12 +83,19 @@ public class ZeroShotThoughtChainAgent extends EpisodicAgent{
     @Override
     public void onFinalAnswer(String user) {
         wechatService.sendMessageToUser(user, "[系统]\n小助手已经回答完您的提问。");
+        endConversation(user);
     }
 
     @Override
-    public void onPartialAnswer(String user) {
-        wechatService.sendMessageToUser(user, "[系统]\n如果您对回答不满意，请换个方式向我提出问题。");
+    public void onFailedEpisode(String user) {
+        wechatService.sendMessageToUser(user, "[系统]\n很抱歉无法回答您的提问。");
+        endConversation(user);
     }
 
+    // @Override
+    // public void onAgentEndConversation(String user) {
+    //     // TODO Auto-generated method stub
+    //     throw new UnsupportedOperationException("Unimplemented method 'onAgentEndConversation'");
+    // }
 
 }

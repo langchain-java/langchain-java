@@ -22,7 +22,7 @@ public class TripadvisorReviewService implements ReviewService{
     }
 
     @Override
-    public List<Location> searchLocations(@NonNull String query, Category category, String address, String phone) {
+    public List<Location> searchLocations(@NonNull String query, CategoryEnum category, String address, String phone) {
         try{
             SearchResult result = connector.searchLocation(query, category.name(), address, phone, null, this.key);
             if(result != null){

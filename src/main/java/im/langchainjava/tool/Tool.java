@@ -1,15 +1,20 @@
 package im.langchainjava.tool;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
 import im.langchainjava.agent.exception.FunctionCallException;
+import im.langchainjava.im.ImService;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.llm.entity.function.FunctionParameter;
 import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.memory.ChatMemoryProvider;
+import im.langchainjava.tool.askuser.AskUserTool;
+import im.langchainjava.tool.askuser.form.FormBuilder;
 import im.langchainjava.utils.JsonUtils;
 import im.langchainjava.utils.StringUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -17,10 +22,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class Tool {
 
-    public static String KEY_FUNC_OUT = "Function";
-    public static String KEY_THOUGHT = "Thought";
-    public static String KEY_CONTROL_SUMMARY = "Summary";
-    public static String KEY_CONTROL_ASK = "Ask";
+    // public static String KEY_FUNC_OUT = "Function";
+    // public static String KEY_THOUGHT = "Thought";
+    // public static String KEY_CONTROL_SUMMARY = "Summary";
+    // public static String KEY_CONTROL_ASK = "Ask";
 
     public static String PARAMETER_TYPE_OBJECT = "object";
 
@@ -44,7 +49,7 @@ public abstract class Tool {
     String desc;
     Map<String, FunctionProperty> parameters;
     List<String> required;
-    String tag;
+    // String tag;
     Map<String, ToolDependency> dependencies;
 
     // final public ChatMemoryProvider memoryProvider;
@@ -56,7 +61,7 @@ public abstract class Tool {
     public abstract List<String> getRequiredProperties();
     // public abstract FunctionProperty getOutput();
     // public abstract String getActionPrompt();
-    public abstract String getTag();
+    // public abstract String getTag();
     public abstract Map<String, ToolDependency> getDependencies();
     public abstract ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory);
 
@@ -74,7 +79,7 @@ public abstract class Tool {
         this.parameters = null;
         this.required = null;
         this.dependencies = null;
-        this.tag = null;
+        // this.tag = null;
     }
 
     public Tool description(String desc){
@@ -130,6 +135,69 @@ public abstract class Tool {
 
     public Tool extractionOnInvalidInputFormat(String th){
         this.extractionOnInvalidInputFormat = th;
+        return this;
+    }
+
+    public Tool dependencyAndProperty(ImService im, FormBuilder formBuilder){
+        return dependencyAndProperty(im, formBuilder, true);
+    }
+
+    public Tool dependencyAndProperty(String name, String description, Tool tool, boolean isRequired){
+        if(this.dependencies == null){
+            this.dependencies = new HashMap<>();
+        }
+        if(this.parameters == null){
+            this.parameters = new HashMap<>();
+        }
+        if(this.required == null){
+            this.required = new ArrayList<>();
+        }
+
+        FunctionProperty p = FunctionProperty.builder()
+                .description(description)
+                .build();
+        this.parameters.put(name, p);
+
+        ToolDependency td = ToolDependency.builder()
+                .dependency(tool)
+                .build();
+        this.dependencies.put(name, td);
+
+        if(isRequired){
+            this.required.add(name);
+        }
+
+        return this;
+    }
+
+    public Tool dependencyAndProperty(ImService im, FormBuilder formBuilder, boolean isRequired){
+        String property = formBuilder.getName();
+        String description = formBuilder.getDescription();
+
+        if(this.dependencies == null){
+            this.dependencies = new HashMap<>();
+        }
+        if(this.parameters == null){
+            this.parameters = new HashMap<>();
+        }
+        if(this.required == null){
+            this.required = new ArrayList<>();
+        }
+
+        FunctionProperty p = FunctionProperty.builder()
+                .description(description)
+                .build();
+        this.parameters.put(property, p);
+
+        ToolDependency td = ToolDependency.builder()
+                .dependency(new AskUserTool(im, formBuilder))
+                .build();
+        this.dependencies.put(property, td);
+
+        if(isRequired){
+            this.required.add(property);
+        }
+
         return this;
     }
 
@@ -193,12 +261,12 @@ public abstract class Tool {
         return getDependencies();
     }
 
-    final public String getFunctionTag(){
-        if(this.tag != null){
-            return this.tag;
-        }
-        return getTag();
-    }
+    // final public String getFunctionTag(){
+    //     if(this.tag != null){
+    //         return this.tag;
+    //     }
+    //     return getTag();
+    // }
 
     final public FunctionParameter getFunctionParameters() {
         return FunctionParameter.builder()
@@ -207,6 +275,28 @@ public abstract class Tool {
                 .required(getFunctionRequiredProperties())
                 .build();
     }
+
+    // public String getWrappedAssisMessage(FunctionCall call, AgentToolOut out){
+    //     return null;
+    // }
+
+    // public ChatMessage getAssistantMessage(String user, FunctionCall call, AgentToolOut out){
+    //     String wrapped = getWrappedAssisMessage(call, out);
+    //     if(wrapped != null){
+    //         return new ChatMessage(LlmService.ROLE_ASSIS, wrapped, user, null);
+    //     }
+    //     return new ChatMessage(LlmService.ROLE_ASSIS, null, user, call);
+    // }
+
+    // public ChatMessage getFunctionOutputMessage(String user, AgentToolOut toolOut){
+    //     if(toolOut.getStatus() == AgentToolOutStatus.success && !StringUtil.isNullOrEmpty(toolOut.getOutput())){
+    //         return new ChatMessage(LlmService.ROLE_FUNC, toolOut.getOutput(), user, null);
+    //     }
+    //     if(toolOut.getStatus() != AgentToolOutStatus.success && !StringUtil.isNullOrEmpty(toolOut.getError())){
+    //         return new ChatMessage(LlmService.ROLE_FUNC, toolOut.getError(), user, null);
+    //     }
+    //     return null;
+    // }
 
     // @Override
     // public void onClearedMemory(String user) {
@@ -236,8 +326,7 @@ public abstract class Tool {
         }
         Map<String, JsonNode> params = parseFunctionCallParam(call);
         if(params == null){
-            // return ToolOuts.invalidParameter(this, user, "Could not parse parameters for function " + call.getName() + ".");
-            return ToolOuts.failed(user, "Could not parse parameters for function " + call.getName() + ".", null);
+            return ToolOuts.invalidParameter(user, "Could not parse parameters for function " + call.getName() + ".");
         }
         call.setParsedArguments(params);
 
@@ -254,7 +343,7 @@ public abstract class Tool {
         return doInvoke(user, call, memory);
     }
 
-    private Map<String, JsonNode> parseFunctionCallParam(FunctionCall call){
+    public static Map<String, JsonNode> parseFunctionCallParam(FunctionCall call){
 
         String rawArguments = call.getArguments();
         Map<String, JsonNode> params = null;

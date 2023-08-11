@@ -1,5 +1,7 @@
 package im.langchainjava.agent.controlledagent.model;
 
+import java.util.List;
+
 public interface TaskBuilder {
-    public Task build();
+    public List<Task> build();
 }

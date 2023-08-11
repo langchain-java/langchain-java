@@ -1,175 +1,157 @@
 package im.langchainjava.tool;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
+import im.langchainjava.tool.AgentToolOut.AgentToolOutStatus;
+import im.langchainjava.tool.AgentToolOut.ControlSignal;
 import im.langchainjava.tool.ControllorToolOut.Status;
-import im.langchainjava.utils.StringUtil;
-
-import static im.langchainjava.tool.Tool.KEY_FUNC_OUT;
-import static im.langchainjava.tool.Tool.KEY_THOUGHT;
-import static im.langchainjava.tool.Tool.KEY_CONTROL_SUMMARY;
-import static im.langchainjava.tool.Tool.KEY_CONTROL_ASK;
 
 public class ToolOuts{
+
+    public static String KEY_FUNC_OUT = "function_out";
+    public static String KEY_THOUGHT = "function_thought";
+    public static String KEY_FUNC_OUT_ERR = "function_out_err";
+
     final String user;
     final Status status;
-    final List<String> messageKeys;
-    final Map<String, String> messages;
+    final AgentToolOutStatus agentToolOutStatus;
+    ControlSignal control;
+    String wrappedMessage;
+    // final List<String> messageKeys;
+    final Map<String, String> controlOutput;
+    String message;
+    // String errorMessage;
 
-    public static ToolOuts of(String user){
-        return new ToolOuts(user);
-    }
-
-    public static ToolOuts of(String user, Status status){
+    public static ToolOuts of(String user, AgentToolOutStatus status){
         return new ToolOuts(user, status);
     }
+
+    public static ToolOuts of(String user, Status status, Map<String, String> output){
+        return new ToolOuts(user, status, output);
+    }
     
-    public ToolOuts(String user){
+    public ToolOuts(String user, AgentToolOutStatus agentToolOutStatus){
         this.user = user;
         this.status = null;
-        this.messages = new HashMap<>();
-        this.messageKeys = new ArrayList<>();
+        this.agentToolOutStatus = agentToolOutStatus;
+        this.controlOutput = new HashMap<>();
+        this.control = null;
+        // this.messageKeys = new ArrayList<>();
     }
 
-    public ToolOuts(String user, Status status){
+    public ToolOuts(String user, Status status, Map<String, String> output){
         this.user = user;
         this.status = status;
-        this.messages = new HashMap<>();
-        this.messageKeys = new ArrayList<>();
+        this.control = null;
+        this.agentToolOutStatus = null;
+        if(output == null){
+            this.controlOutput = new HashMap<>();
+        }else{
+            this.controlOutput = new HashMap<>(output);
+        }
     }
 
-    public ToolOuts message(String key, String message){
-        if(this.messages.containsKey(key)){
-            throw new ToolException("Duplcated message key: " + key);
-        }
-        this.messageKeys.add(key);
-        this.messages.put(key, message);
+    // public ToolOuts message(String key, String message){
+    //     if(this.messages.containsKey(key)){
+    //         throw new ToolException("Duplcated message key: " + key);
+    //     }
+    //     // this.messageKeys.add(key);
+    //     this.messages.put(key, message);
+    //     return this;
+    // } 
+    public ToolOuts message(String msg){
+        this.message = msg;
         return this;
-    } 
+    }
+
+    public ToolOuts output(String key, String message){
+        this.controlOutput.put(key, message);
+        return this;
+    }
+
+    public ToolOuts agentControl(ControlSignal control){
+        this.control = control;
+        return this;
+    }
+
+    // public ToolOuts errorMessage(String msg){
+    //     this.errorMessage = msg;
+    //     return this;
+    // }
+
+    public ToolOuts wrapAssistantMessage(String message){
+        this.wrappedMessage = message;
+        return this;
+    }
 
     
     public ToolOut get(){
-        List<ToolOutHandler> handlers = new ArrayList<>();
-        Map<String, ToolOutHandler> handlerMap = new HashMap<>();
-        for(String key : this.messageKeys){
-            ToolOutHandler handler = new ToolOutHandler();
-            String message = this.messages.get(key);
-            handler.setKey(key);
-            handler.setMessage(message);
-            handlers.add(handler);
-            handlerMap.put(key, handler);
-        }
         if(this.status == null){
-            return new AgentToolOut(this.user, handlers, handlerMap);
+            return new AgentToolOut(user, agentToolOutStatus, message);
         }else{
-            return new ControllorToolOut(user, handlers, handlerMap, status);
+            return new ControllorToolOut(this.user, status, this.controlOutput, message);
         }
     }
 
 
-    public static ToolOut invalidParameter(Tool tool, String user, String message){
-        return ToolOuts.of(user)
-                        .message(KEY_FUNC_OUT, tool.getObservationOnInvalidParameter(message))
-                        .message(KEY_THOUGHT, tool.getThoughtOnInvalidParameter())
+    public static AgentToolOut invalidParameter(String user, String message){
+        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.invalideParam)
+                        .message(message)
                         .get();
     }
 
-    // public ToolOut waitUserInput(String user){
-    //     ToolOut out = ToolOuts.of(user, false)
-    //                         .message(KEY_FUNC_OUT, "")
-    //                         .sync();
-    //     // this.users.put(user, out);
-    //     return out;
-    // }
-
-    public static ToolOut onResult(Tool tool, String user, String result){
-        return ToolOuts.of(user)
-                        .message(KEY_FUNC_OUT, result)
-                        .message(KEY_THOUGHT, tool.getThought())
+    public static AgentToolOut onAskUser(String user, String message){
+        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.control)
+                        .message(message)
+                        .agentControl(ControlSignal.form)
                         .get();
     }
 
-    // public ToolOut onDisclosedResult(String user, String result, String disclosedResult){
-    //     return ToolOuts.of(user, true)
-    //                     .message(Tool.KEY_FUNC_OUT, result)
-    //                     .message(Tool.KEY_THOUGHT, getThought())
-    //                     .message(Tool.KEY_DISCLOSE, disclosedResult)
-    //                     .sync();
-    // }
-
-    public static ToolOut onToolError(Tool tool, String user){
-        return ToolOuts.of(user)
-                        .message(KEY_FUNC_OUT, tool.getObservationOnError())
-                        .message(KEY_THOUGHT, tool.getThoughtOnError())
+    public static AgentToolOut onResult(String user, String result){
+        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.success)
+                        .message(result)
                         .get();
     }
 
-    public static ToolOut onEmptyResult(Tool tool, String user){
-        return ToolOuts.of(user)
-                        .message(KEY_FUNC_OUT, tool.getObservationOnEmptyResult())
-                        .message(KEY_THOUGHT, tool.getThoughtOnEmptyResult())
+    public static AgentToolOut onFinish(String user, String result){
+        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.control)
+                        .message(result)
+                        .agentControl(ControlSignal.finish)
                         .get();
     }
 
-    public static ToolOut onEmptyResult(Tool tool, String user, String message){
-        return ToolOuts.of(user)
-                        .message(KEY_FUNC_OUT, message)
-                        .message(KEY_THOUGHT, tool.getThoughtOnEmptyResult())
+    public static AgentToolOut onToolError(String user, String message){
+        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.error)
+                        .message(message)
                         .get();
     }
 
-
-    public static ControllorToolOut halt(String user, String message, String ask){
-        return (ControllorToolOut) ToolOuts.of(user, Status.halt)
-                        .message(KEY_CONTROL_SUMMARY, message)
-                        .message(KEY_CONTROL_ASK, ask)
+    public static AgentToolOut onEmptyResult(String user, String message){
+        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.empty)
+                        .message(message)
                         .get();
     }
 
-
-    public static ControllorToolOut success(String user, String message, String ask){
-        return (ControllorToolOut) ToolOuts.of(user, Status.success)
-                        .message(KEY_CONTROL_SUMMARY, message)
-                        .message(KEY_CONTROL_ASK, ask)
-                        .get();
+    public static ControllorToolOut halt(String user, Map<String, String> output, String error){
+        return (ControllorToolOut) ToolOuts.of(user, Status.halt, output).message(error).get();
     }
 
-    public static ControllorToolOut failed(String user, String message, String ask){
-        return (ControllorToolOut) ToolOuts.of(user, Status.failed)
-                        .message(KEY_CONTROL_SUMMARY, message)
-                        .message(KEY_CONTROL_ASK, ask)
-                        .get();
+
+    public static ControllorToolOut success(String user, Map<String, String> output){
+        return  (ControllorToolOut) ToolOuts.of(user, Status.success, output).get();
     }
 
-    public static ToolOut next(String user, String thought, String message, String ask){
-        ToolOuts to = ToolOuts.of(user, Status.next);
-        if(!StringUtil.isNullOrEmpty(thought)){
-            to.message(KEY_THOUGHT, thought);
-        }
-        if(!StringUtil.isNullOrEmpty(message)){
-            to.message(KEY_CONTROL_SUMMARY, message);
-        }
-        if(!StringUtil.isNullOrEmpty(ask)){
-            to.message(KEY_CONTROL_ASK, ask);
-        }
-        return to.get();
+    public static ControllorToolOut failed(String user, Map<String, String> output, String error){
+        return (ControllorToolOut) ToolOuts.of(user, Status.failed, output).message(error).get();
     }
 
-    public static ToolOut waitUserInput(String user, String thought, String message, String ask){
-        ToolOuts to = ToolOuts.of(user, Status.wait);
-        if(!StringUtil.isNullOrEmpty(thought)){
-            to.message(KEY_THOUGHT, thought);
-        }
-        if(!StringUtil.isNullOrEmpty(message)){
-            to.message(KEY_CONTROL_SUMMARY, message);
-        }
-        if(!StringUtil.isNullOrEmpty(ask)){
-            to.message(KEY_CONTROL_ASK, ask);
-        }
-        return to.get();
+    public static ControllorToolOut next(String user, Map<String, String> output){
+        return (ControllorToolOut) ToolOuts.of(user, Status.next, output).get();
+    }
+
+    public static ControllorToolOut waitUserInput(String user, Map<String, String> output){
+        return (ControllorToolOut) ToolOuts.of(user, Status.wait, output).get();
     }
 
 

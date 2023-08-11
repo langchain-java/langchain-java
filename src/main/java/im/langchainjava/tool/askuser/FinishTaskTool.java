@@ -13,34 +13,32 @@ import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolDependency;
 import im.langchainjava.tool.ToolOut;
 import im.langchainjava.tool.ToolOuts;
-import im.langchainjava.tool.askuser.form.Form;
-import im.langchainjava.tool.askuser.form.FormBuilder;
-import im.langchainjava.utils.JsonUtils;
 
-public class AskUserTool extends Tool{
+public class FinishTaskTool extends Tool{
 
-    final ImService im;
+    public static String PARAM_MSG = "message";
 
-    final FormBuilder formBuilder;
+    public static String PARAM_EXP_1 = "example1";
+    public static String PARAM_EXP_2 = "example2";
+    public static String PARAM_EXP_3 = "example3";
 
-    // final String tag;
+    ImService im;
 
-    public AskUserTool(ImService im, FormBuilder formBuilder){
+    public FinishTaskTool(ImService im){
         super();
         this.im = im;
-        this.formBuilder = formBuilder;
-        // this.tag = tag;
     }
 
     @Override
     public String getName() {
-        return "ask_user";
+        return "finish_task";
     }
 
     @Override
     public String getDescription() {
-        return "Use this tool to ask user a question." ; 
+        return "Use this function to finish the current task. " ; 
     }
+
 
     @Override
     public Map<String, FunctionProperty> getProperties() {
@@ -54,15 +52,7 @@ public class AskUserTool extends Tool{
 
     @Override
     public ToolOut doInvoke(String user, FunctionCall functionCall, ChatMemoryProvider memory) {
-        
-        if(this.formBuilder == null){
-            return ToolOuts.onToolError(user, "The ask user tool does not has a form builder.");
-        }
-
-        Form form = this.formBuilder.build();
-        this.im.sendMessageToUser(user, form.getMessage());
-        this.im.sendMessageToUser(user, JsonUtils.fromObject(form));
-        return ToolOuts.onAskUser(user, form.getMessage());
+        return ToolOuts.onFinish(user, "The task is finished.");
     }
 
     @Override

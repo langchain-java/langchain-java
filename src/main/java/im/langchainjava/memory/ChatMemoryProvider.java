@@ -8,6 +8,8 @@ import im.langchainjava.llm.entity.function.FunctionCall;
 public interface ChatMemoryProvider {
     List<ChatMessage> getPrompt(String user);
 
+    void onReceiveMessage(String user, ChatMessage message);
+
     void onReceiveUserMessage(String user, String message);
 
     void onReceiveSystemMessage(String user, String message);
