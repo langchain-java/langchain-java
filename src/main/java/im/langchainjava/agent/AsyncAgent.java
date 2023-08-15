@@ -59,8 +59,6 @@ public abstract class AsyncAgent implements LlmErrorHandler{
             return;
         }
 
-        memoryProvider.onReceiveUserMessage(user, message);
-
         this.waiting.offer(user);
     }
 
@@ -103,17 +101,15 @@ public abstract class AsyncAgent implements LlmErrorHandler{
         boolean isUserTurn = true;
         
         while(true){
-
-            if(showPrompt){
-                showMessages("agent", promptProvider.getPrompt(user));
-            }
-
+            
             if(!onInvokingAi(user, isUserTurn)){
                 break;
             }
 
+            if(showPrompt){
+                showMessages("agent", promptProvider.getPrompt(user));
+            }
             chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user), promptProvider.getFunctions(user), promptProvider.getFunctionCall(user),  this);
-
             if(chatMessage == null){
                 // all exceptions causing chatMessage == null are handled in chatCompletion. 
                 // We simple do control logic here.
@@ -121,9 +117,8 @@ public abstract class AsyncAgent implements LlmErrorHandler{
             }
             
             boolean next = onAiResponse(user, chatMessage, isUserTurn);
-            
+
             isUserTurn = false;
-            
             if(!next){
                 break;
             }

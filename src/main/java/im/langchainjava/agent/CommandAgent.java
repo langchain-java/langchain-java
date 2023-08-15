@@ -18,6 +18,7 @@ public abstract class CommandAgent extends AsyncAgent{
     }
 
     public abstract void onCommand(String user, Command command);
+    public abstract void onMessage(String user, String text);
 
     @Override
     public boolean onUserMessage(String user, String message) {
@@ -30,6 +31,7 @@ public abstract class CommandAgent extends AsyncAgent{
                 return false;
             }
         }
+        onMessage(user, message);
         return true;
 
     }

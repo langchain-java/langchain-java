@@ -28,13 +28,14 @@ public abstract class Tool {
     // public static String KEY_CONTROL_ASK = "Ask";
 
     public static String PARAMETER_TYPE_OBJECT = "object";
+    public static String PARAMETER_TYPE_STRING = "string";
 
     public static String OBSERVATION_ON_EMPTY = "This function does not give any result this time.";
     public static String OBSERVATION_ON_ERR = "This function is not available. Don't use this function again.";
     public static String EXTRACTION_NAME = "function_output";
     public static String EXTRACTION_ON_EMPTY = "There is no result. I should try another function or tell the user `我不知道`.";
     public static String EXTRACTION_ON_ERR = "I should try another function or tell the user `我不知道`.";
-    public static String EXTRACTION = "Now I have the results. I should extract useful information from these results and think what action to take.";
+    public static String EXTRACTION = "the output of the function call";
     public static String OBSERVATION_ON_INVALID_PARAM = "Invalid parameters: ";
     public static String EXTRACTION_ON_INVALID_PARAM = "I should ask the user to clarify the question or try the function again with corrected parameter.";
 
@@ -154,6 +155,7 @@ public abstract class Tool {
         }
 
         FunctionProperty p = FunctionProperty.builder()
+                .type(PARAMETER_TYPE_STRING)
                 .description(description)
                 .build();
         this.parameters.put(name, p);
@@ -185,6 +187,7 @@ public abstract class Tool {
         }
 
         FunctionProperty p = FunctionProperty.builder()
+                .type(PARAMETER_TYPE_STRING)
                 .description(description)
                 .build();
         this.parameters.put(property, p);
@@ -324,11 +327,13 @@ public abstract class Tool {
         if(!call.getName().equals(getName())){
             throw new FunctionCallException("The function name does not match function call. Function name is "+ getName() + " while the function call is " + call.getName() + "." );
         }
-        Map<String, JsonNode> params = parseFunctionCallParam(call);
-        if(params == null){
-            return ToolOuts.invalidParameter(user, "Could not parse parameters for function " + call.getName() + ".");
+        if(call.getParsedArguments() == null){
+            Map<String, JsonNode> params = parseFunctionCallParam(call);
+            if(params == null){
+                return ToolOuts.invalidParameter(user, "Could not parse parameters for function " + call.getName() + ".");
+            }
+            call.setParsedArguments(params);
         }
-        call.setParsedArguments(params);
 
         List<String> requiredProperties = getFunctionRequiredProperties();
         if(requiredProperties != null && !requiredProperties.isEmpty() && call.getParsedArguments() != null){

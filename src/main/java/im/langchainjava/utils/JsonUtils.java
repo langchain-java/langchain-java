@@ -16,6 +16,15 @@ public class JsonUtils {
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     }
 
+    public static JsonNode toNode(String input){
+        try {
+            return mapper.readTree(input);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null; 
+        }
+    }
+    
     public static Map<String,String> toMapOf(String json){
         try {
             return mapper.readerForMapOf(String.class).readValue(json);

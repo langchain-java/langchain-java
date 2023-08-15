@@ -22,6 +22,6 @@ public class FunctionProperty {
     
     String description; 
 
-    @JsonIgnore
-    String tag;
+    // @JsonIgnore
+    // String tag;
 }

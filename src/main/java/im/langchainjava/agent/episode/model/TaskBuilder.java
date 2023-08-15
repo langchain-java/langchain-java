@@ -1,4 +1,4 @@
-package im.langchainjava.agent.controlledagent.model;
+package im.langchainjava.agent.episode.model;
 
 import java.util.List;
 

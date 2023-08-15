@@ -1,4 +1,4 @@
-package im.langchainjava.agent.controlledagent;
+package im.langchainjava.agent.episode;
 
 import java.util.HashMap;
 import java.util.List;
@@ -7,9 +7,10 @@ import java.util.Map.Entry;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
-import im.langchainjava.agent.controlledagent.model.Episode;
-import im.langchainjava.agent.controlledagent.model.Task;
-import im.langchainjava.agent.controlledagent.model.TaskBuilder;
+import im.langchainjava.agent.episode.model.Episode;
+import im.langchainjava.agent.episode.model.Task;
+import im.langchainjava.agent.episode.model.TaskBuilder;
+import im.langchainjava.agent.episode.model.TaskExtraction;
 import im.langchainjava.agent.functioncall.TaskSolver;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.ChatMemoryProvider;
@@ -74,6 +75,8 @@ public class EpisodeSolver implements TaskSolver{
                 if(solvedTask.isFailed()){
                     return solvedTask;
                 };
+
+                task = solvedTask;
             }
         }
 
@@ -103,14 +106,21 @@ public class EpisodeSolver implements TaskSolver{
 
         Tool t = tools.get(call.getName());
 
-        Map<String, String> extractions = new HashMap<>();
-        extractions.put(t.getExtractionName(), t.getExtraction());
+        // Map<String, String> extractions = new HashMap<>();
+        // extractions.put(t.getExtractionName(), t.getExtraction());
+        TaskExtraction te = new TaskExtraction(t.getExtractionName(), t.getExtraction());
+
+        Map<String, JsonNode> parsedParam = Tool.parseFunctionCallParam(call);
+        call.setParsedArguments(parsedParam);
+
         Map<String, String> param = new HashMap<>();
-        for(Entry<String, JsonNode> e : call.getParsedArguments().entrySet()){
+        for(Entry<String, JsonNode> e : parsedParam.entrySet()){
             param.put(e.getKey(), e.getValue().asText());
         }
 
-        Task task = new Task(t, param, extractions, false);
+        Task task = new Task(t, param, te, false);
+        Task parent = this.solveCurrentTask(user);
+        parent.input(te.getName(), task);
         
         getEpisode(user).addTask(task);
         return this.solveCurrentTask(user);

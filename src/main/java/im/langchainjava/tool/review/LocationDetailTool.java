@@ -41,13 +41,12 @@ public class LocationDetailTool extends Tool{
 
     @Override
     public String getName() {
-        return "search_locations";
+        return "get_location_detail";
     }
 
     @Override
     public String getDescription() {
-        return "This function is for searching recommendations of places to visit.\r\n"
-                +"Always use this function when you need to search for attractions, hotels or restaurants.";
+        return "This function is for getting detail information of attractions, hotels or restaurants.";
     }
 
     @Override

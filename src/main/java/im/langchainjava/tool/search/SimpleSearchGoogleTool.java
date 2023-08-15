@@ -16,7 +16,6 @@ import im.langchainjava.tool.ToolDependency;
 import im.langchainjava.tool.ToolOut;
 import im.langchainjava.tool.ToolOuts;
 import im.langchainjava.tool.askuser.form.FormBuilders;
-import im.langchainjava.utils.JsonUtils;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +24,11 @@ import lombok.extern.slf4j.Slf4j;
 public class SimpleSearchGoogleTool extends Tool{
 
     public static String PARAM_QUERY = "query";
-    public static String PARAM_DESC = "The query string to the web search engine.";
+    public static String PARAM_DESC = "the query string to the web search engine";
+
+    public static String EXTRACTION_NAME = "web_search_engine_results";
+    public static String EXTRACTION = "the top 1 result that most relevant with the query";
+
     public static int MAX_LINK_LENGTH = 100;
 
     public static int NUM_RESULT = 5;
@@ -45,6 +48,8 @@ public class SimpleSearchGoogleTool extends Tool{
         this.number = NUM_RESULT;
 
         dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_QUERY, PARAM_DESC));
+        extractionName(EXTRACTION_NAME);
+        extraction(EXTRACTION);
     }
 
     public SimpleSearchGoogleTool numberOfResults(int num){
@@ -111,7 +116,7 @@ public class SimpleSearchGoogleTool extends Tool{
             }
 
             im.sendMessageToUser(user, "[搜索引擎]" + query + "\n" + "已经找到" + outs.size()+"个结果，正在整理结果。\n" + formatResults(outs)); 
-            return ToolOuts.onResult(user, JsonUtils.fromList(outs));
+            return ToolOuts.onResult(user, formatResults(outs));
 
             // resp = JsonUtils.fromList(outs);
             // return onResult(user, resp);
@@ -147,8 +152,12 @@ public class SimpleSearchGoogleTool extends Tool{
 
     private String formatResults(List<SearchOutput> outs){
         StringBuilder sb = new StringBuilder();
+        int i = 0;
         for(SearchOutput o : outs){
             sb.append(o.getTitle()).append("|").append(o.getSnippet()).append("|").append(o.getLink()).append("\n");
+            if(++i >= NUM_RESULT){
+                break;
+            }
         }
         return sb.toString();
     }

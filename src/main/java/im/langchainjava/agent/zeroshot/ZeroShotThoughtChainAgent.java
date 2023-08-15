@@ -5,7 +5,7 @@ import java.util.List;
 import im.langchainjava.agent.MemoryAgent;
 import im.langchainjava.agent.command.CommandParser;
 import im.langchainjava.agent.command.CommandParser.Command;
-import im.langchainjava.agent.controlledagent.EpisodicPromptProvider;
+import im.langchainjava.agent.episode.EpisodicPromptProvider;
 import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.memory.ChatMemoryProvider;

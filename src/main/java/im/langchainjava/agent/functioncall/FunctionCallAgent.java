@@ -2,8 +2,8 @@ package im.langchainjava.agent.functioncall;
 
 import im.langchainjava.agent.CommandAgent;
 import im.langchainjava.agent.command.CommandParser;
-import im.langchainjava.agent.controlledagent.EpisodeException;
-import im.langchainjava.agent.controlledagent.model.Task;
+import im.langchainjava.agent.episode.EpisodeException;
+import im.langchainjava.agent.episode.model.Task;
 import im.langchainjava.agent.exception.AiResponseException;
 import im.langchainjava.agent.exception.FunctionCallException;
 import im.langchainjava.llm.LlmService;
@@ -27,7 +27,7 @@ public abstract class FunctionCallAgent extends CommandAgent{
         this.solver = solver;
     }
 
-    public abstract boolean onMessage(String user, String message, boolean isUserTurn);
+    public abstract boolean onAgentMessage(String user, String message, boolean isUserTurn);
 
     public abstract boolean onFunctionCallResult(String user, Tool tool, FunctionCall functionCall, AgentToolOut functionOut, boolean isUserTurn);
     
@@ -52,12 +52,13 @@ public abstract class FunctionCallAgent extends CommandAgent{
             }
                 
             Tool func = task.getFunction();
-
+            
             if(func == null){
                 return onFunctionCallException(user, call, new EpisodeException("The resolved function call task has no function in it."), isUserTurn);
             }
-
-            return handleFunctionCall(user, func, call, isUserTurn);
+            
+            FunctionCall solvedFuncCall = task.getFunctionCall();
+            return handleFunctionCall(user, func, solvedFuncCall, isUserTurn);
         }
 
         if(StringUtil.isNullOrEmpty(message.getContent())){
@@ -87,7 +88,7 @@ public abstract class FunctionCallAgent extends CommandAgent{
     }
 
     private boolean handleMessage(String user, String message, boolean isUserTurn){
-        return onMessage(user, message, isUserTurn);
+        return onAgentMessage(user, message, isUserTurn);
     }
 
 

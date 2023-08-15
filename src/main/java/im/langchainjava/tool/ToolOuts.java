@@ -19,7 +19,7 @@ public class ToolOuts{
     ControlSignal control;
     String wrappedMessage;
     // final List<String> messageKeys;
-    final Map<String, String> controlOutput;
+    String controlOutput;
     String message;
     // String errorMessage;
 
@@ -27,7 +27,7 @@ public class ToolOuts{
         return new ToolOuts(user, status);
     }
 
-    public static ToolOuts of(String user, Status status, Map<String, String> output){
+    public static ToolOuts of(String user, Status status, String output){
         return new ToolOuts(user, status, output);
     }
     
@@ -35,21 +35,17 @@ public class ToolOuts{
         this.user = user;
         this.status = null;
         this.agentToolOutStatus = agentToolOutStatus;
-        this.controlOutput = new HashMap<>();
+        this.controlOutput = null;
         this.control = null;
         // this.messageKeys = new ArrayList<>();
     }
 
-    public ToolOuts(String user, Status status, Map<String, String> output){
+    public ToolOuts(String user, Status status, String output){
         this.user = user;
         this.status = status;
         this.control = null;
         this.agentToolOutStatus = null;
-        if(output == null){
-            this.controlOutput = new HashMap<>();
-        }else{
-            this.controlOutput = new HashMap<>(output);
-        }
+        this.controlOutput = output;
     }
 
     // public ToolOuts message(String key, String message){
@@ -65,10 +61,10 @@ public class ToolOuts{
         return this;
     }
 
-    public ToolOuts output(String key, String message){
-        this.controlOutput.put(key, message);
-        return this;
-    }
+    // public ToolOuts output(String key, String message){
+    //     this.controlOutput.put(key, message);
+    //     return this;
+    // }
 
     public ToolOuts agentControl(ControlSignal control){
         this.control = control;
@@ -133,24 +129,24 @@ public class ToolOuts{
                         .get();
     }
 
-    public static ControllorToolOut halt(String user, Map<String, String> output, String error){
+    public static ControllorToolOut halt(String user, String output, String error){
         return (ControllorToolOut) ToolOuts.of(user, Status.halt, output).message(error).get();
     }
 
 
-    public static ControllorToolOut success(String user, Map<String, String> output){
+    public static ControllorToolOut success(String user, String output){
         return  (ControllorToolOut) ToolOuts.of(user, Status.success, output).get();
     }
 
-    public static ControllorToolOut failed(String user, Map<String, String> output, String error){
+    public static ControllorToolOut failed(String user, String output, String error){
         return (ControllorToolOut) ToolOuts.of(user, Status.failed, output).message(error).get();
     }
 
-    public static ControllorToolOut next(String user, Map<String, String> output){
+    public static ControllorToolOut next(String user, String output){
         return (ControllorToolOut) ToolOuts.of(user, Status.next, output).get();
     }
 
-    public static ControllorToolOut waitUserInput(String user, Map<String, String> output){
+    public static ControllorToolOut waitUserInput(String user, String output){
         return (ControllorToolOut) ToolOuts.of(user, Status.wait, output).get();
     }
 

@@ -1,10 +1,10 @@
-package im.langchainjava.agent.controlledagent;
+package im.langchainjava.agent.episode;
 
 import java.util.List;
 
 import im.langchainjava.agent.command.CommandParser;
-import im.langchainjava.agent.controlledagent.model.Task;
-import im.langchainjava.agent.controlledagent.model.TaskFailure;
+import im.langchainjava.agent.episode.model.Task;
+import im.langchainjava.agent.episode.model.TaskFailure;
 import im.langchainjava.agent.functioncall.FunctionCallAgent;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.llm.entity.ChatMessage;
@@ -41,6 +41,13 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
         super(llm, prompt, memory, c, prompt.getSolver());
         this.episodicPromptProvider = prompt;
         this.solver = prompt.getSolver();
+    }
+
+    @Override
+    public void onMessage(String user, String text){
+        Task task = this.solver.solveCurrentTask(user);
+        Asserts.assertTrue(task != null, "The current episode was finished prematurely.");
+        task.addUserMessage(user, text);
     }
 
     @Override
@@ -115,7 +122,7 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
                 }
     
                 if(toolOut.getControl() == ControlSignal.finish){
-                    task.finish(user, toolOut.getOutput());
+                    task.finish(toolOut.getOutput());
                     return next(user);
                 }
             }
@@ -196,7 +203,7 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
         log.info("Controller has an exception while processing messagge for user: " + user + "\n message: " + message);
     }
 
-    public boolean onMessage(String user, String message, boolean isUserTurn){
+    public boolean onAgentMessage(String user, String message, boolean isUserTurn){
         Task task = this.solver.solveCurrentTask(user);
         Asserts.assertTrue(task != null, "Episode is finished prematurely.");
         Asserts.assertTrue(!task.isFailed(), "Task is failed unexpactivly.");

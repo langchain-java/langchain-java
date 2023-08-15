@@ -11,5 +11,6 @@ import lombok.Data;
 @AllArgsConstructor
 public class ToolDependency {
     Tool dependency;
-    Map<String, String> extractions;
+    String extraction;
+    // Map<String, String> extractions;
 }

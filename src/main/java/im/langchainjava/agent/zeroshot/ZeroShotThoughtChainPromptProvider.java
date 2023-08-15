@@ -7,8 +7,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import im.langchainjava.agent.controlledagent.EpisodeSolver;
-import im.langchainjava.agent.controlledagent.EpisodicPromptProvider;
+import im.langchainjava.agent.episode.EpisodeSolver;
+import im.langchainjava.agent.episode.EpisodicPromptProvider;
 import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.Function;
 import im.langchainjava.llm.entity.function.FunctionCall;
@@ -130,15 +130,15 @@ public class ZeroShotThoughtChainPromptProvider extends EpisodicPromptProvider {
         return funs;
     }
 
-    @Override
-    public List<ChatMessage> getPrompt(String user){
-        List<ChatMessage> chats = new ArrayList<>();
-        String prompt = getRole() + getInsight() + getStatement();
-        ChatMessage sysMsg = new ChatMessage(ROLE_SYSTEM, prompt);
-        chats.add(sysMsg);
-        chats.addAll(super.getEpisodicHistory(user));
-        return chats;
-    }
+    // @Override
+    // public List<ChatMessage> getPrompt(String user){
+    //     List<ChatMessage> chats = new ArrayList<>();
+    //     String prompt = getRole() + getInsight() + getStatement();
+    //     ChatMessage sysMsg = new ChatMessage(ROLE_SYSTEM, prompt);
+    //     chats.add(sysMsg);
+    //     chats.addAll(super.getEpisodicHistory(user));
+    //     return chats;
+    // }
 
     @Override
     public FunctionCall getFunctionCall(String user) {

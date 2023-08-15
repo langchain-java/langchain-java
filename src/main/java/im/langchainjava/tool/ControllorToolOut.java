@@ -13,12 +13,13 @@ public class ControllorToolOut implements ToolOut{
     final Status status;
 
     @Getter
-    final Map<String, String> output;
+    // final Map<String, String> output;
+    final String output;
 
     @Getter
     final String error;
 
-    public ControllorToolOut(String user, Status status, Map<String, String> output, String error){
+    public ControllorToolOut(String user, Status status, String output, String error){
         this.status = status;
         this.user = user;
         this.output = output;

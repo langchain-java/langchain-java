@@ -1,4 +1,4 @@
-package im.langchainjava.agent.controlledagent;
+package im.langchainjava.agent.episode;
 
 public class EpisodeException extends RuntimeException{
     public EpisodeException(String message, Exception cause){

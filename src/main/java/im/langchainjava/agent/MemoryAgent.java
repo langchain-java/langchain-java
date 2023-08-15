@@ -3,8 +3,8 @@ package im.langchainjava.agent;
 import java.util.List;
 
 import im.langchainjava.agent.command.CommandParser;
-import im.langchainjava.agent.controlledagent.EpisodicAgent;
-import im.langchainjava.agent.controlledagent.EpisodicPromptProvider;
+import im.langchainjava.agent.episode.EpisodicAgent;
+import im.langchainjava.agent.episode.EpisodicPromptProvider;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.ChatMemoryProvider;
@@ -28,6 +28,13 @@ public abstract class MemoryAgent extends EpisodicAgent{
     public abstract void onMaxFunctionCall(String user);
     // public abstract void onAgentEndConversation(String user);
     public abstract void onCleardMemory(String user);
+
+
+    @Override
+    public void onMessage(String user, String text){
+        this.memoryProvider.onReceiveUserMessage(user, text);
+        super.onMessage(user, text);
+    }
 
     @Override
     public boolean onInvokingAi(String user, boolean isUserTurn){
@@ -77,9 +84,5 @@ public abstract class MemoryAgent extends EpisodicAgent{
         super.getMemoryProvider().reset(user);
         onCleardMemory(user);
     }
-
-    // public void rememberAssistantMessage(String user, String message){
-    //     memoryProvider.onReceiveAssisMessage(user, message);
-    // }
 
 }
