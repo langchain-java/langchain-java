@@ -37,17 +37,29 @@ public class EpisodeSolver implements TaskSolver{
         }
     }
 
-    public Task solveCurrentTask(@NonNull String user){
+    public Task getCurrentTask(String user){
+        Episode e = getEpisode(user);
+        Asserts.assertTrue(e != null, "The eposide is null for user "+ user + ".");
+        Task task = e.getCurrentTask();
+        while(task != null && taskIsPassed(task)){
+            task = e.popCurrentTaskAndGetNext();
+        }
+        return task;
+    }
+
+    public Task popCurrentTask(String user){
+        Episode e = getEpisode(user);
+        return e.popCurrentTaskAndGetNext();
+    }
+
+    public Task resolveCurrentTask(@NonNull String user){
 
         Episode e = getEpisode(user);
         Asserts.assertTrue(e != null, "The eposide is null for user "+ user + ".");
 
         //pick up from what's left
-        Task task = e.getCurrentTask();
-        //skip optional tasks
-        while(task != null && taskIsPassed(task)){
-            task = e.popCurrentTaskAndGetNext();
-        }
+        Task task = getCurrentTask(user);
+
         if(task == null){
             return null;
         }
@@ -59,13 +71,13 @@ public class EpisodeSolver implements TaskSolver{
         Task solvedTask = null;
         if(task.getInputs() != null){
             for(Task t : task.getInputs().values()){
-                // the successful dependencies does not need to solve again.
-                if(taskIsPassed(t)){
+                // the unresolvable dependencies does not need to solve again.
+                if(taskIsUnresolvable(t)){
                     continue;
                 }
 
                 e.addTask(t);
-                solvedTask = solveCurrentTask(user);
+                solvedTask = resolveCurrentTask(user);
                 
                 //solvedTask is passed
                 if(solvedTask == null){
@@ -87,7 +99,7 @@ public class EpisodeSolver implements TaskSolver{
         Episode episode = (Episode) memory.getContextForUser(user, CONTEXT_KEY_TASK, null);
         if(episode == null){
             // init a root task if there is no episode. (This happens only at the start of the episode)
-            List<Task> initialTasks = this.initialTaskBuilder.build();
+            List<Task> initialTasks = this.initialTaskBuilder.build(user);
             episode = new Episode(initialTasks);
             memory.setContextForUser(user, CONTEXT_KEY_TASK, episode);
         }
@@ -95,7 +107,15 @@ public class EpisodeSolver implements TaskSolver{
     }
 
     private boolean taskIsPassed(Task task){
-        return (task == null || task.isSuccess() || task.isOptional());
+        return (task == null || task.isSuccess() || (task.isOptional() && task.isFailed()));
+    }
+
+    private boolean taskIsUnresolvable(Task task){
+        return (task == null 
+                || task.isSuccess() 
+                || task.isFailed()
+                || task.isOptional() 
+                || !task.isResolvable());
     }
 
     @Override
@@ -106,10 +126,7 @@ public class EpisodeSolver implements TaskSolver{
 
         Tool t = tools.get(call.getName());
 
-        // Map<String, String> extractions = new HashMap<>();
-        // extractions.put(t.getExtractionName(), t.getExtraction());
         TaskExtraction te = new TaskExtraction(t.getExtractionName(), t.getExtraction());
-
         Map<String, JsonNode> parsedParam = Tool.parseFunctionCallParam(call);
         call.setParsedArguments(parsedParam);
 
@@ -118,12 +135,16 @@ public class EpisodeSolver implements TaskSolver{
             param.put(e.getKey(), e.getValue().asText());
         }
 
-        Task task = new Task(t, param, te, false);
-        Task parent = this.solveCurrentTask(user);
+        // Task parent = this.solveCurrentTask(user);
+        Task parent = getCurrentTask(user);
+
+        Asserts.assertTrue(parent != null && !parent.isFailed(), "Parent task is null or is failed prematurely.");
+
+        Task task = new Task(null, user, parent, t, param, te, true, true);
         parent.input(te.getName(), task);
         
         getEpisode(user).addTask(task);
-        return this.solveCurrentTask(user);
+        return this.resolveCurrentTask(user);
     }
     
 }

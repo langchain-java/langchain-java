@@ -4,8 +4,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
+import im.langchainjava.agent.episode.focus.Focus;
+import im.langchainjava.agent.episode.focus.FocusManager;
 import im.langchainjava.agent.episode.model.Task;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.llm.entity.function.FunctionProperty;
@@ -28,9 +29,11 @@ public class EpisodicControlTool extends Tool{
     final Task task;
     final Map<String, FunctionProperty> properties;
     final List<String> required;
+    final FocusManager focusManager;
 
-    public EpisodicControlTool(Task task) {
+    public EpisodicControlTool(Task task, FocusManager focusManager) {
         this.task = task;
+        this.focusManager = focusManager;
         this.properties = new HashMap<>();
         // if(task.getExtractions() == null){
         if(task.getExtraction() == null){
@@ -38,16 +41,21 @@ public class EpisodicControlTool extends Tool{
             log.error(msg);
             throw new EpisodeException(msg);
         }
-        // for(Entry<String, String> extraction : task.getExtractions().entrySet()){
-        //     this.properties.put(extraction.getKey(), FunctionProperty.builder().description(extraction.getValue()).build());
-        // }
-        this.properties.put(task.getExtraction().getName(), 
-                FunctionProperty.builder().description(task.getExtraction().getDescription()).build());
-        this.properties.put(PARAM_MATCH, FunctionProperty.builder().description(PARAM_MATCH_DESC).build());
         
+        this.properties.put(PARAM_MATCH, FunctionProperty.builder().description(PARAM_MATCH_DESC).build());
+        Asserts.assertTrue(!PARAM_MATCH.equalsIgnoreCase(task.getExtraction().getName()), "Duplicated controllor parameter " + PARAM_MATCH);
+        this.properties.put(task.getExtraction().getName(), 
+                FunctionProperty.builder().description(task.getExtraction().getExtraction()).build());
+        
+        if(this.focusManager != null){
+            for(Focus focus : this.focusManager.getFocuses()){
+                Asserts.assertTrue(!this.properties.containsKey(focus.getName()), "Duplicated controllor parameter " + focus.getName());
+                this.properties.put(focus.getName(), FunctionProperty.builder().description(focus.getDescription()).build());
+            }
+        }
+
         this.required = new ArrayList<>();
         this.required.addAll(this.properties.keySet());
-
     }
 
     @Override
@@ -74,43 +82,19 @@ public class EpisodicControlTool extends Tool{
     @Override
     public ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory) {
         
-        // Asserts.assertTrue(this.task.getExtractions() != null && !this.task.getExtractions().isEmpty(), "Extractions are not set for task " + this.task.getName());
         Asserts.assertTrue(this.task.getExtraction() != null, "Extractions are not set for task " + this.task.getName());
-
-        String output = null;
 
         String e = task.getExtraction().getName();
         String val = ToolUtils.getStringParam(call, e);
         if(StringUtil.isNullOrEmpty(val)){
-            return ToolOuts.next(user, output);
+            return ToolOuts.next(user, null);
         }
 
         if(ToolUtils.compareStringParamIgnoreCase(call, PARAM_MATCH, PARAM_MATCH_YES)){
-            output = val;
-            return ToolOuts.success(user, output);
+            return ToolOuts.success(user, val);
         }
 
-        return ToolOuts.next(user, output);
-
-        // for(Entry<String, String> e : task.getExtractions().entrySet()){
-        //     String key = e.getKey();
-        //     if(key == null){
-        //         continue;
-        //     }
-        //     String val = ToolUtils.getStringParam(call, key);
-
-        //     if(StringUtil.isNullOrEmpty(val)){
-        //         continue;
-        //     }
-
-        //     output.put(key, val);
-        // }
-
-        // if(output.size() < task.getExtractions().size()){
-        //     // some progress is made, but not finished yet.
-        //     return ToolOuts.next(user, output);
-        // }
-        // return ToolOuts.success(user, output);
+        return ToolOuts.next(user, val);
 
     }
 

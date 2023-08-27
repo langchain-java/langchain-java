@@ -1,8 +1,6 @@
 package im.langchainjava.tool;
 
-import java.util.HashMap;
-import java.util.Map;
-
+import im.langchainjava.tool.AgentToolOut.AgentToolError;
 import im.langchainjava.tool.AgentToolOut.AgentToolOutStatus;
 import im.langchainjava.tool.AgentToolOut.ControlSignal;
 import im.langchainjava.tool.ControllorToolOut.Status;
@@ -17,7 +15,8 @@ public class ToolOuts{
     final Status status;
     final AgentToolOutStatus agentToolOutStatus;
     ControlSignal control;
-    String wrappedMessage;
+    AgentToolError agentError;
+    // String wrappedMessage;
     // final List<String> messageKeys;
     String controlOutput;
     String message;
@@ -71,31 +70,30 @@ public class ToolOuts{
         return this;
     }
 
+    public ToolOuts agentError(AgentToolError error){
+        this.agentError = error;
+        return this;
+    }
+
     // public ToolOuts errorMessage(String msg){
     //     this.errorMessage = msg;
     //     return this;
     // }
 
-    public ToolOuts wrapAssistantMessage(String message){
-        this.wrappedMessage = message;
-        return this;
-    }
+    // public ToolOuts wrapAssistantMessage(String message){
+    //     this.wrappedMessage = message;
+    //     return this;
+    // }
 
     
     public ToolOut get(){
         if(this.status == null){
-            return new AgentToolOut(user, agentToolOutStatus, message);
+            return new AgentToolOut(user, agentToolOutStatus, control, agentError, message);
         }else{
             return new ControllorToolOut(this.user, status, this.controlOutput, message);
         }
     }
 
-
-    public static AgentToolOut invalidParameter(String user, String message){
-        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.invalideParam)
-                        .message(message)
-                        .get();
-    }
 
     public static AgentToolOut onAskUser(String user, String message){
         return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.control)
@@ -110,6 +108,23 @@ public class ToolOuts{
                         .get();
     }
 
+    public static AgentToolOut onResult(String user, String result, Tool dispatch){
+        return ((AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.success)
+                        .message(result)
+                        .get()).successor(dispatch);
+    }
+
+    public static AgentToolOut onResult(String user, Tool dispatch){
+        return ((AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.success)
+                        .get()).successor(dispatch);
+    }
+
+    public static AgentToolOut onDispatch(String user, Tool dispatch){
+        return ((AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.control)
+                    .agentControl(ControlSignal.dispatch)
+                    .get()).dispatch(dispatch);
+    }
+
     public static AgentToolOut onFinish(String user, String result){
         return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.control)
                         .message(result)
@@ -119,12 +134,21 @@ public class ToolOuts{
 
     public static AgentToolOut onToolError(String user, String message){
         return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.error)
+                        .agentError(AgentToolError.error)
                         .message(message)
                         .get();
     }
 
     public static AgentToolOut onEmptyResult(String user, String message){
-        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.empty)
+        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.error)
+                        .agentError(AgentToolError.empty)
+                        .message(message)
+                        .get();
+    }
+
+    public static AgentToolOut invalidParameter(String user, String message){
+        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.error)
+                        .agentError(AgentToolError.invalidParam)
                         .message(message)
                         .get();
     }

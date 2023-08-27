@@ -16,17 +16,22 @@ import im.langchainjava.tool.ToolOuts;
 
 public class FinishTaskTool extends Tool{
 
-    public static String PARAM_MSG = "message";
+    private static String EXTRACTION_NAME = "status_of_task";
+    private static String EXTRACTION = "the latest status of the task";
+    // public static String PARAM_MSG = "message";
 
-    public static String PARAM_EXP_1 = "example1";
-    public static String PARAM_EXP_2 = "example2";
-    public static String PARAM_EXP_3 = "example3";
+    // public static String PARAM_EXP_1 = "example1";
+    // public static String PARAM_EXP_2 = "example2";
+    // public static String PARAM_EXP_3 = "example3";
+
 
     ImService im;
 
     public FinishTaskTool(ImService im){
         super();
         this.im = im;
+        extractionName(EXTRACTION_NAME);
+        extraction(EXTRACTION);
     }
 
     @Override

@@ -139,11 +139,7 @@ public abstract class Tool {
         return this;
     }
 
-    public Tool dependencyAndProperty(ImService im, FormBuilder formBuilder){
-        return dependencyAndProperty(im, formBuilder, true);
-    }
-
-    public Tool dependencyAndProperty(String name, String description, Tool tool, boolean isRequired){
+    public Tool emptyProperty(){
         if(this.dependencies == null){
             this.dependencies = new HashMap<>();
         }
@@ -153,7 +149,15 @@ public abstract class Tool {
         if(this.required == null){
             this.required = new ArrayList<>();
         }
+        return this;
+    }
 
+    public Tool dependencyAndProperty(ImService im, FormBuilder formBuilder){
+        return dependencyAndProperty(im, formBuilder, true);
+    }
+
+    public Tool dependencyAndProperty(String name, String description, Tool tool, boolean isRequired){
+        emptyProperty();
         FunctionProperty p = FunctionProperty.builder()
                 .type(PARAMETER_TYPE_STRING)
                 .description(description)

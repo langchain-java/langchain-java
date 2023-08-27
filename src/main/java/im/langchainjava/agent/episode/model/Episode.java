@@ -19,7 +19,7 @@ public class Episode{
 
     public Episode(@NonNull Task task){
         stack = new Stack<>();
-        addTask(task);
+        stack.push(task);
     }
     
     public Task addTasks(@NonNull List<Task> tasks){

@@ -1,7 +1,5 @@
 package im.langchainjava.tool;
 
-import java.util.Map;
-
 import lombok.Getter;
 
 public class ControllorToolOut implements ToolOut{

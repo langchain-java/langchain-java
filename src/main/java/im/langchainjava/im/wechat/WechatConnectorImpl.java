@@ -1,13 +1,16 @@
 package im.langchainjava.im.wechat;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import im.langchainjava.im.wechat.dto.WechatAccessToken;
+import im.langchainjava.im.wechat.dto.WechatGetTagResponse;
 import im.langchainjava.im.wechat.dto.WechatOutTextMessage;
 import im.langchainjava.im.wechat.dto.WechatSendMsgResponse;
+import im.langchainjava.im.wechat.dto.WechatTag;
+import im.langchainjava.im.wechat.dto.WechatTagUserRequest;
 import im.langchainjava.utils.HttpClientUtil;
-// import im.langchainjava.utils.RestUtil;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor
@@ -33,5 +36,24 @@ public class WechatConnectorImpl implements WechatConnector {
         params.put("access_token", token);
         return HttpClientUtil.post(url, params,body, WechatSendMsgResponse.class);
 
+    }
+
+
+    @Override
+    public WechatGetTagResponse getTags(String token) {
+        String url = baseUri + "/tags/get";
+        Map<String, String> params = new HashMap<>();
+        params.put("access_token", token);
+        return HttpClientUtil.get(url, params, WechatGetTagResponse.class);
+    }
+
+
+    @Override
+    public WechatSendMsgResponse tagUser(String token, String user, WechatTag tag) {
+        String url = baseUri + "/tags/members";
+        Map<String, String> params = new HashMap<>();
+        params.put("access_token", token);
+        WechatTagUserRequest request = new WechatTagUserRequest(Collections.singletonList(user), tag.getId());
+        return HttpClientUtil.post(url, params, request, WechatSendMsgResponse.class);
     }
 }

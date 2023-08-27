@@ -14,7 +14,7 @@ import im.langchainjava.utils.StringUtil;
 public abstract class MemoryAgent extends EpisodicAgent{
 
     private static int MAX_ROUNDS = 20;
-    private static int MAX_FUNCS = 5;
+    private static int MAX_FUNCS = 15;
 
     final private ChatMemoryProvider memoryProvider;
 
@@ -36,22 +36,22 @@ public abstract class MemoryAgent extends EpisodicAgent{
         super.onMessage(user, text);
     }
 
-    @Override
-    public boolean onInvokingAi(String user, boolean isUserTurn){
-        if(memoryProvider.incrRoundAndGet(user) >= MAX_ROUNDS){
-            onMaxRound(user);
-            endConversation(user);
-            return false;
-        }
+    // @Override
+    // public boolean onInvokingAi(String user, boolean isUserTurn){
+    //     if(memoryProvider.incrRoundAndGet(user) >= MAX_ROUNDS){
+    //         onMaxRound(user);
+    //         endConversation(user);
+    //         return false;
+    //     }
 
-        if(memoryProvider.getFunctionCallNum(user) >= MAX_FUNCS){
-            onMaxFunctionCall(user);
-            endConversation(user);
-            return false;
-        }
+    //     if(memoryProvider.getFunctionCallNum(user) >= MAX_FUNCS){
+    //         onMaxFunctionCall(user);
+    //         endConversation(user);
+    //         return false;
+    //     }
 
-        return super.onInvokingAi(user, isUserTurn);
-    }
+    //     return super.onInvokingAi(user, isUserTurn);
+    // }
 
     @Override
     final public void onAssistantFunctionCall(String user, Tool tool, FunctionCall call, AgentToolOut output, boolean isUserTurn) {

@@ -8,7 +8,7 @@ import im.langchainjava.llm.entity.function.FunctionCall;
 
 public interface ChatPromptProvider {
     
-    public List<ChatMessage> getPrompt(String user);
+    public List<ChatMessage> getPrompt(String user, boolean isUserTurn);
 
     public List<Function> getFunctions(String user);
 

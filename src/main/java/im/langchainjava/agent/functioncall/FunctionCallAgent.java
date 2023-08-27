@@ -2,15 +2,11 @@ package im.langchainjava.agent.functioncall;
 
 import im.langchainjava.agent.CommandAgent;
 import im.langchainjava.agent.command.CommandParser;
-import im.langchainjava.agent.episode.EpisodeException;
-import im.langchainjava.agent.episode.model.Task;
 import im.langchainjava.agent.exception.AiResponseException;
 import im.langchainjava.agent.exception.FunctionCallException;
-import im.langchainjava.llm.LlmService;
 import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.ChatMemoryProvider;
-import im.langchainjava.prompt.ChatPromptProvider;
 import im.langchainjava.tool.AgentToolOut;
 import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolOut;
@@ -20,14 +16,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class FunctionCallAgent extends CommandAgent{
 
-    final private TaskSolver solver;
-
-    public FunctionCallAgent(LlmService llm, ChatPromptProvider prompt, ChatMemoryProvider memory, CommandParser c, TaskSolver solver){
-        super(llm, prompt, memory, c);
-        this.solver = solver;
+    public FunctionCallAgent(ChatMemoryProvider memory, CommandParser c){
+        super(memory, c);
     }
 
     public abstract boolean onAgentMessage(String user, String message, boolean isUserTurn);
+
+    public abstract boolean onFunctionCall(String user, FunctionCall call, boolean isUserTurn, FunctionCall givenCall);
 
     public abstract boolean onFunctionCallResult(String user, Tool tool, FunctionCall functionCall, AgentToolOut functionOut, boolean isUserTurn);
     
@@ -35,30 +30,10 @@ public abstract class FunctionCallAgent extends CommandAgent{
 
     public abstract boolean onFunctionExecutionException(String user, Tool t, FunctionCall functionCall, Exception e, boolean isUserTurn);
 
-    @Override
-    public boolean onAiResponse(String user, ChatMessage message, boolean isUserTurn){
+    public boolean onAiResponse(String user, ChatMessage message, boolean isUserTurn, FunctionCall givenCall){
         if(message.getFunctionCall() != null){
             FunctionCall call = message.getFunctionCall();
-
-            Task task = null;
-            try{
-                task = solver.solveFunctionCall(user, call);
-            }catch(EpisodeException e){
-                return onFunctionCallException(user, call, e, isUserTurn);
-            }
-
-            if(task == null){
-                return onFunctionCallException(user, call, new EpisodeException("The resolved task is null on new function call task."), isUserTurn);
-            }
-                
-            Tool func = task.getFunction();
-            
-            if(func == null){
-                return onFunctionCallException(user, call, new EpisodeException("The resolved function call task has no function in it."), isUserTurn);
-            }
-            
-            FunctionCall solvedFuncCall = task.getFunctionCall();
-            return handleFunctionCall(user, func, solvedFuncCall, isUserTurn);
+            return onFunctionCall(user, call, isUserTurn, givenCall);
         }
 
         if(StringUtil.isNullOrEmpty(message.getContent())){
@@ -69,10 +44,8 @@ public abstract class FunctionCallAgent extends CommandAgent{
         return handleMessage(user, message.getContent(), isUserTurn);
     }
 
-
-    private boolean handleFunctionCall(String user, Tool tool, FunctionCall call, boolean isUserTurn){
+    public boolean handleFunctionCall(String user, Tool tool, FunctionCall call, boolean isUserTurn){
         try{
-            onFunctionCall(user, call, isUserTurn);
             ToolOut toolOut = tool.invoke(user, call, getMemoryProvider());
             if(toolOut == null){
                 return onFunctionExecutionException(user, tool, call, new FunctionCallException("Function call "+ tool.getFunction().getName() + " returns null."), isUserTurn);
@@ -84,17 +57,10 @@ public abstract class FunctionCallAgent extends CommandAgent{
         }catch(Exception e){
             return onFunctionExecutionException(user, tool, call, e, isUserTurn);
         }
-        
     }
 
     private boolean handleMessage(String user, String message, boolean isUserTurn){
         return onAgentMessage(user, message, isUserTurn);
-    }
-
-
-    public void onFunctionCall(String user, FunctionCall functionCall, boolean isUserTurn){
-        // do nothing. Can be overrided.
-        return;
     }
 
 }

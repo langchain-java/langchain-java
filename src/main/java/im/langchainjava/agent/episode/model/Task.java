@@ -15,25 +15,36 @@ import com.fasterxml.jackson.databind.node.TextNode;
 
 import im.langchainjava.agent.episode.Asserts;
 import im.langchainjava.agent.episode.EpisodicControlTool;
+import im.langchainjava.agent.episode.focus.FocusManager;
 import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.tool.AgentToolOut;
 import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolDependency;
+import im.langchainjava.tool.ToolUtils;
+import im.langchainjava.tool.AgentToolOut.AgentToolOutStatus;
+import im.langchainjava.tool.AgentToolOut.ControlSignal;
 import im.langchainjava.utils.JsonUtils;
 import im.langchainjava.utils.StringUtil;
 import lombok.Data;
-import lombok.NonNull;
 
 @Data
 public class Task{
 
+    final String user;
+
+    final Task parent;
+
     final Tool function;
+
+    Tool successor;
 
     // final String tag;
 
     final boolean optional;
+
+    final boolean resolvable;
 
     // final Map<String, String> extractions;
     TaskExtraction extraction;
@@ -43,6 +54,8 @@ public class Task{
     final List<ChatMessage> history;
 
     final Map<String, Task> inputs;
+
+    final Map<String, String> params;
 
     // final Map<String, String> result;
     String extracted;
@@ -56,21 +69,24 @@ public class Task{
     String name;
 
     // public Task(Tool func, Map<String, String> param, @NonNull Map<String, String> extractions, boolean optional){
-    public Task(Tool func, Map<String, String> param, TaskExtraction extraction, boolean optional){
-
+    public Task(FocusManager focusManager, String user, Task parent, Tool func, Map<String, String> param, TaskExtraction extraction, boolean optional, boolean resolvable){
+        this.user = user;
+        this.parent = parent;
         this.function = func;
+        this.params = param;
         this.name = null;
         if(this.function != null){
             this.name = this.function.getName();
         }
         this.optional = optional;
+        this.resolvable = resolvable;
         // this.extractions = extractions;
         this.extraction = extraction;
         this.success = false;
         this.history = new ArrayList<>();
         this.extracted = null;
         this.inputs = new HashMap<>();
-        this.episodicControlFunction = new EpisodicControlTool(this);
+        this.episodicControlFunction = new EpisodicControlTool(this, focusManager);
 
         if(this.function == null || this.function.getFunctionProperties() == null){
             return;
@@ -94,39 +110,83 @@ public class Task{
                 if(td != null){
                     Tool depTool = td.getDependency();
                     TaskExtraction te = null;
-                    // Map<String, String> depExtractions = null;
-                    // if(td.getExtractions() == null || td.getExtractions().isEmpty()){
-                    if(StringUtil.isNullOrEmpty(td.getExtraction())){
-                        te = new TaskExtraction(propertyName, p.getDescription());
-                        // depExtractions = new HashMap<>();
-                        // depExtractions.put(propertyName, p.getDescription());
-                    }else{
-                        te = new TaskExtraction(propertyName, td.getExtraction());
-                        // depExtractions = td.getExtractions();
-                    }
-                    subTask = new Task(depTool, null, te, optnl);
+                    te = new TaskExtraction(propertyName, p.getDescription());
+                    // if(StringUtil.isNullOrEmpty(td.getExtraction())){
+                    //     te = new TaskExtraction(propertyName, p.getDescription());
+                    // }else{
+                    //     te = new TaskExtraction(propertyName, td.getExtraction());
+                    // }
+                    subTask = new Task(focusManager, this.user, this, depTool, null, te, optnl, true);
                 }
             }
 
             if(subTask == null){
-                // Map<String, String> defaultExtractions = new HashMap<>();
-                // defaultExtractions.put(propertyName, p.getDescription());
                 TaskExtraction te = new TaskExtraction(propertyName, p.getDescription());
-                subTask = new Task(null, null, te, optnl);
+                subTask = new Task(focusManager, this.user, this, null, null, te, optnl, false);
             }
             
-            Asserts.assertTrue(subTask != null, "Dependency is not defined for property: " + propertyName + " in function " + this.function.getName() + ".");
-
-            if(param!= null){
-                String value = param.get(propertyName);
+            if(this.params!= null){
+                String value = this.params.get(propertyName);
                 if(!StringUtil.isNullOrEmpty(value)){
-                    subTask.finish(value);
+                    subTask.updateResult(value);
+                    subTask.finish();
                 }
             }
 
             inputs.put(propertyName, subTask);
         }
 
+    }
+
+    public void successor(Tool next){
+        this.successor = next;
+    } 
+
+    public Task updateParams(FunctionCall call){
+        Task outstanding = null;
+        for(Entry<String, Task> e : this.inputs.entrySet()){
+            String name = e.getKey();
+            Task t = e.getValue();
+            String val = ToolUtils.getStringParam(call, name);
+
+            if(t == null){
+                continue;
+            }
+
+            if(StringUtil.isNullOrEmpty(val)){
+                if(t.isSuccess()){
+                    continue;
+                }
+
+                // t is not success                
+                if(!t.isResolvable() && !t.isOptional()){
+                    outstanding = t;
+                }
+                continue;
+            }
+
+
+            t.updateResult(val);
+            t.finish();
+        }
+        return outstanding;
+    }
+
+    public Task getOutstandingUnresolvableDependency(){
+        for(Entry<String, Task> e : this.inputs.entrySet()){
+            Task t = e.getValue();
+            if(t == null || t.isSuccess()){
+                continue;
+            }
+            if(t.isOptional()){
+                continue;
+            }
+            
+            if(!t.isResolvable()){
+                return t;
+            }
+        }
+        return null;
     }
 
     public void input(String key, Task task){
@@ -145,13 +205,54 @@ public class Task{
         return this.failure != null;
     }
 
-    public void finish(String result) {
+    public List<ChatMessage> getStackHistory(){
+        List<ChatMessage> stacked = new ArrayList<>();
+        if(this.parent != null){
+            stacked.addAll(parent.getStackHistory());
+        }
+        stacked.addAll(this.history);
+        return stacked;
+    }
+
+    public void finish(){
+        this.finish(null);
+    }
+
+    public void finish(Tool successor) {
         this.failure = null;
         this.success = true;
-        // for(Entry<String, String> e : results.entrySet()){
-        //     this.result.put(e.getKey(), e.getValue());
-        // }
-        this.extracted = result;
+
+        if(successor != null){
+            this.successor = successor;
+        }
+        
+        if (this.parent == null){
+            return;
+        }
+        
+        if(this.toolOut != null && this.toolOut.getStatus() == AgentToolOutStatus.control){
+            this.parent.addAssistMessage(this.user, this.toolOut.getOutput());
+            if(this.toolOut.getControl() == ControlSignal.form){
+                Asserts.assertTrue(!StringUtil.isNullOrEmpty(extracted), "Task has not extracted value when it is finished.");
+                this.parent.addUserMessage(this.user, this.extracted);
+            }
+            return;
+        }
+
+        Asserts.assertTrue(!StringUtil.isNullOrEmpty(extracted), "Task has not extracted value when it is finished.");
+        if (this.function == null){
+            // this is non function call task
+            this.parent.addAssistMessage(this.user, this.extraction.extraction + " is " + this.extracted);
+            return;
+        }
+
+        if(this.toolOut == null){
+            this.parent.addAssistMessage(this.user, this.extraction.extraction + " is " + this.extracted);
+            return;
+        }
+
+        this.parent.addAssistFunctionCall(this.user, this.getFunctionCall());
+        this.parent.addFunctionCallResult(this.user, this.extracted);
     }
 
 
@@ -161,10 +262,39 @@ public class Task{
         this.extracted = result;
     }
 
+    public void fail(TaskFailure failure){
+        this.fail(failure, null); 
+    }
 
-    public void fail(TaskFailure failure) {
+    public void fail(TaskFailure failure, Tool successor) {
         this.failure = failure;
         this.success = false;
+
+        if(successor != null){
+            this.successor = successor;
+        }
+
+        if (this.parent == null){
+            return;
+        }
+        
+        if (this.function == null){
+            // this is non function call task
+            this.parent.addAssistMessage(this.user, failure.getMessage());
+            return;
+        }
+
+        Asserts.assertTrue(this.toolOut != null, "Function call task does not has a tool out upon failing.");
+
+        if(this.toolOut.getStatus() == AgentToolOutStatus.control){
+            this.parent.addAssistMessage(this.user, this.toolOut.getOutput());
+            this.parent.addUserMessage(this.user, failure.getMessage());
+            return;
+        }
+
+
+        this.parent.addAssistFunctionCall(this.user, this.getFunctionCall());
+        this.parent.addFunctionCallResult(this.user, failure.getMessage());
     }
 
     public void addUserMessage(String user, String message){
@@ -198,5 +328,17 @@ public class Task{
                 .parsedArguments(param)
                 .arguments(JsonUtils.fromMap(strParam))
                 .build();
+    }
+
+    public boolean isReady(){
+        for(Task t : inputs.values()){
+            if(t == null){
+                continue;
+            }
+            if(!t.isSuccess() && !t.isOptional()){
+                return false;
+            }
+        }
+        return true;
     }
 }

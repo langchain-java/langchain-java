@@ -9,9 +9,11 @@ import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 
 import im.langchainjava.im.ImService;
 import im.langchainjava.im.wechat.dto.WechatAccessToken;
+import im.langchainjava.im.wechat.dto.WechatGetTagResponse;
 import im.langchainjava.im.wechat.dto.WechatInTextMessage;
 import im.langchainjava.im.wechat.dto.WechatOutTextMessage;
 import im.langchainjava.im.wechat.dto.WechatSendMsgResponse;
+import im.langchainjava.im.wechat.dto.WechatTag;
 import im.langchainjava.utils.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -60,32 +62,45 @@ public class WechatService implements ImService{
     }
 
     @Override
-    public ImMessage onMessage(String raw) {
+    public ImMessage parseMessage(String raw) {
         WechatInTextMessage message;
         try {
             message = xmlMapper.readValue(raw, WechatInTextMessage.class);
             if(message.getEvent() != null && EVENT_SUBSCRIBE.equals(message.getEvent())){
                 String user = message.getFromUser();
-                return new ImMessage(ImMessageType.subscribe, user, message.getText());
+                String eventKey = message.getEventKey();
+                return new ImMessage(ImMessageType.subscribe, eventKey, user, message.getText());
             }
 
             String user = message.getFromUser();
             if(message.getText() == null){
-                return new ImMessage(ImMessageType.unsupportedMessage, user, message.getText());
+                return new ImMessage(ImMessageType.unsupportedMessage, null, user, message.getText());
             }else{
                 Long messageId = message.getMessageId();
                 Long oldMessageId = messageIdMap.putIfAbsent(user, messageId);
                 messageIdMap.put(user, messageId);
                 if(oldMessageId!= null && Objects.equals(oldMessageId,messageId)){
-                    return new ImMessage(ImMessageType.duplicatedMessage, user, message.getText());
+                    return new ImMessage(ImMessageType.duplicatedMessage, null, user, message.getText());
                 }
-                return new ImMessage(ImMessageType.text, user, message.getText());
+                return new ImMessage(ImMessageType.text, null, user, message.getText());
             }
         } catch (JsonProcessingException e) {
             e.printStackTrace();
-            return new ImMessage(ImMessageType.invalidFormat, null, null);
+            return new ImMessage(ImMessageType.invalidFormat, null, null, null);
         }
     }
 
+    @Override
+    public void tagUser(String user, String tag) {
+        WechatGetTagResponse getTagResp = connector.getTags(getAccessToken());
+        if(getTagResp == null || getTagResp.getTags() == null){
+            return;
+        }
+        for(WechatTag t : getTagResp.getTags()){
+            if(t.getName()!= null && t.getName().equals(tag)){
+                connector.tagUser(getAccessToken(), user, t);
+            }
+        }
+    }
 
 }

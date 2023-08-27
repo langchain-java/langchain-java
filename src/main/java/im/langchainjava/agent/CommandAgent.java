@@ -12,8 +12,8 @@ public abstract class CommandAgent extends AsyncAgent{
 
     CommandParser commandParser;
 
-    public CommandAgent(LlmService llm, ChatPromptProvider prompt, ChatMemoryProvider memory, CommandParser parser){
-        super(prompt, memory, llm);
+    public CommandAgent(ChatMemoryProvider memory, CommandParser parser){
+        super(memory);
         this.commandParser = parser;
     }
 

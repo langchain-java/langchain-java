@@ -35,7 +35,7 @@ public class BasicChatPromptProvider implements ChatPromptProvider {
     }
 
     @Override
-    public List<ChatMessage> getPrompt(String user) {
+    public List<ChatMessage> getPrompt(String user, boolean isUserTurn) {
         List<ChatMessage> chats = new ArrayList<>();
         String todayDate = new SimpleDateFormat("YYYY-MM-dd").format(new Date());
         String prompt = getPrefix() + todayDate + getSubfix();

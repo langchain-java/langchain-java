@@ -1,6 +1,9 @@
 package im.langchainjava.agent.episode;
 
 import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.databind.JsonNode;
 
 import im.langchainjava.agent.command.CommandParser;
 import im.langchainjava.agent.episode.model.Task;
@@ -25,8 +28,11 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class EpisodicAgent extends FunctionCallAgent{
 
-    final EpisodicPromptProvider episodicPromptProvider;
+    final EpisodicPromptProvider promptProvider;
     final EpisodeSolver solver;
+    final LlmService llm;
+
+    boolean showPrompt = false;
 
     public static String CONTEXT_KEY_FORCE_BREAK = "control_force_break";
 
@@ -38,33 +44,89 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
     public abstract void onAssistantFunctionCallError(String user, FunctionCall functionCall, Exception e, boolean isUserTurn);
 
     public EpisodicAgent(LlmService llm, EpisodicPromptProvider prompt, ChatMemoryProvider memory, CommandParser c) {
-        super(llm, prompt, memory, c, prompt.getSolver());
-        this.episodicPromptProvider = prompt;
+        super(memory, c);
+        this.promptProvider = prompt;
         this.solver = prompt.getSolver();
+        this.llm = llm;
     }
 
     @Override
     public void onMessage(String user, String text){
-        Task task = this.solver.solveCurrentTask(user);
+        Task task = this.solver.getCurrentTask(user);
         Asserts.assertTrue(task != null, "The current episode was finished prematurely.");
         task.addUserMessage(user, text);
     }
 
     @Override
-    public boolean onInvokingAi(String user, boolean isUserTurn){
-        Task task = this.solver.solveCurrentTask(user);
-        Asserts.assertTrue(task != null, "The current episode was finished prematurely.");
+    public boolean onFunctionCall(String user, FunctionCall call, boolean isUserTurn, FunctionCall given){
+        Task task = solver.getCurrentTask(user);
+
+        if(given != null){
+            Map<String, JsonNode> parsedParam = Tool.parseFunctionCallParam(call);
+            call.setParsedArguments(parsedParam);
+            return task.updateParams(call) == null;
+        }
+
+        solver.solveFunctionCall(user, call);
+        return true;
+    }
+
+    @Override
+    public boolean onChat(String user, boolean isUserTurn){
+        Task task = this.solver.resolveCurrentTask(user);
+
+        if(task == null){
+            onFinalAnswer(user);
+            return false;
+        }
+
+        if(task.getFunction() != null){
+            if(task.getToolOut() == null){
+                if(!task.isReady()){
+                    onAgent(user, isUserTurn, task);
+                }
+                Task unresolvable = task.getOutstandingUnresolvableDependency();
+                if(unresolvable != null && unresolvable.getFunction() != null){
+                    this.solver.solveFunctionCall(user, unresolvable.getFunctionCall());
+                    return true;
+                }
+
+                return handleFunctionCall(user, task.getFunction(), task.getFunctionCall(), isUserTurn);
+            }
+        }
+
+        return onControl(user, isUserTurn, task);
+    }
+
+    private boolean onAgent(String user, boolean isUserTurn, Task task){
+
+        ChatMessage chatMessage = null;
+
+        if(showPrompt){
+            showMessages("agent", promptProvider.getPrompt(user, isUserTurn));
+        }
+        FunctionCall call = promptProvider.getFunctionCall(user);
+        chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user, isUserTurn), promptProvider.getFunctions(user), call, this);
+        if(chatMessage == null){
+            // all exceptions causing chatMessage == null are handled in chatCompletion. 
+            // We simple do control logic here.
+            return false;
+        }
         
-        List<ChatMessage> prompt = episodicPromptProvider.getEpisodicControlPrompt(user);
+        return onAiResponse(user, chatMessage, isUserTurn, call);
+    }
+
+    public boolean onControl(String user, boolean isUserTurn, Task task){
+        List<ChatMessage> prompt = promptProvider.getEpisodicControlPrompt(user);
         showMessages("episode", prompt);
         ChatMessage message = null;
         int retry = 3;
         while(true){
             try{
-                message = getLlm().chatCompletion(user, 
+                message = this.llm.chatCompletion(user, 
                                                     prompt, 
-                                                    this.episodicPromptProvider.getEpisodicControlFunctions(user), 
-                                                    episodicPromptProvider.getEpisodicControlFunctionCall(user), 
+                                                    this.promptProvider.getEpisodicControlFunctions(user), 
+                                                    promptProvider.getEpisodicControlFunctionCall(user), 
                                                     this);
                 break;
             }catch (Exception e){
@@ -100,11 +162,9 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
         Asserts.assertTrue(output instanceof ControllorToolOut, "The episodic controller does not return a controller tool out.");
         ControllorToolOut out = (ControllorToolOut) output;
 
-        // wait for user input, the current task status is unchanged (neither success nor failed)
-        if(out.getStatus() == Status.wait){
-            onWaitUserInput(user);
-            return false;
-        }
+        //update task result
+        log.info(out.getOutput());
+        task.updateResult(out.getOutput());
 
         // halt immediatly
         if(out.getStatus() == Status.halt){
@@ -112,45 +172,33 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
             return false;
         }
 
-        AgentToolOut toolOut = task.getToolOut();
-        if(toolOut != null){
-            
-            if(toolOut.getStatus() == AgentToolOutStatus.control){
-                if(toolOut.getControl() == ControlSignal.form){
-                    onWaitUserInput(user);
-                    return false;
-                }
-    
-                if(toolOut.getControl() == ControlSignal.finish){
-                    task.finish(toolOut.getOutput());
-                    return next(user);
-                }
-            }
-
-            if(toolOut.getStatus() != AgentToolOutStatus.success){
-                task.fail(new TaskFailure(toolOut.getOutput()));
-                return fail(user);
-            }
-        }
-
-
         // the current task is finished
         if(out.getStatus() == Status.success){
             // switch current task status to success;
-            task.finish(out.getOutput());
-            return success(user);
+            return finish(user, task);
         }
 
         // The current task status is switched to failed;
         if(out.getStatus() == Status.failed){
-            task.fail(new TaskFailure(out.getError()));
-            return fail(user);
+            return fail(user, task, new TaskFailure(out.getError()));
         }
         
-        // The current task status is neither success or failed;
         if(out.getStatus() == Status.next){
-            task.updateResult(out.getOutput());
-            return next(user);
+
+            //if the task is a function call task and the function call is a success, finish the function call task.
+            if(task.getFunction() != null){
+                Asserts.assertTrue(task.getToolOut() != null, "Function call task does not produce a tool out in the task.");
+                if(task.getToolOut().getStatus() == AgentToolOutStatus.success){
+                    return finish(user, task);
+                }
+            }
+
+
+            if(next(user)){
+                return onAgent(user, isUserTurn, task);
+            }
+            
+            return false;
         }
 
         if(isUserTurn){
@@ -161,21 +209,31 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
         throw new EpisodeException("The controller status " + out.getStatus().name() + " is not recognized.");
     }
 
-    private boolean success(String user){
+    //insert the successor function call task to the parent task input.
+    private void onTaskFinishedOrFailed(String user, Task task){
+        if(task.getSuccessor() != null){
+            solver.solveFunctionCall(user, task.getSuccessor().getFunctionCall());
+        }
+    }
+
+    private boolean finish(String user, Task task){
+        onTaskFinishedOrFailed(user, task);
+        task.finish();
+        Task nextTask = this.solver.resolveCurrentTask(user);
         // All tasks are finished
-        Task nextTask = this.solver.solveCurrentTask(user);
         if(nextTask == null){
             onFinalAnswer(user);
             return false;
         }
-
         // resolved task is not null and not failed = there's more task in the episode
         return next(user);
     }
 
-    private boolean fail(String user){
+    private boolean fail(String user, Task task, TaskFailure failure){
+        onTaskFinishedOrFailed(user, task);
+        task.fail(failure);
         // All tasks are finished
-        Task nextTask = this.solver.solveCurrentTask(user);
+        Task nextTask = this.solver.resolveCurrentTask(user);
         if(nextTask == null){
             onFinalAnswer(user);
             return false;
@@ -204,7 +262,7 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
     }
 
     public boolean onAgentMessage(String user, String message, boolean isUserTurn){
-        Task task = this.solver.solveCurrentTask(user);
+        Task task = this.solver.getCurrentTask(user);
         Asserts.assertTrue(task != null, "Episode is finished prematurely.");
         Asserts.assertTrue(!task.isFailed(), "Task is failed unexpactivly.");
         task.addAssistMessage(user, message);
@@ -217,26 +275,58 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
     @Override
     public boolean onFunctionCallResult(String user, Tool tool, FunctionCall functionCall, AgentToolOut functionOut, boolean isUserTurn){
         Asserts.assertTrue(functionOut != null, "Function Out must not be null.");
-        Task task = this.solver.solveCurrentTask(user);
+        Task task = this.solver.getCurrentTask(user);
         Asserts.assertTrue(task != null, "Episode is finished prematurely.");
         Asserts.assertTrue(!task.isFailed(), "Task is failed unexpactivly.");
         
+        task.setToolOut(functionOut);
+        if(functionOut.getSuccessor() != null){
+            task.setSuccessor(functionOut.getSuccessor());
+        }
+
         if(functionOut.getStatus() == AgentToolOutStatus.control){
             task.addAssistMessage(user, functionOut.getOutput());
             onAssistantMessage(user, functionOut.getOutput());
-        }else{
-            task.addAssistFunctionCall(user, functionCall);
-            task.addAssistMessage(user, functionOut.getOutput());
-            onAssistantFunctionCall(user, tool, functionCall, functionOut, isUserTurn);
-        }
-        
-        task.setToolOut(functionOut);
 
-        return true;
+            if(functionOut.getControl() == ControlSignal.form){
+                // this.solver.popCurrentTask(user);
+                task.finish();
+                onWaitUserInput(user);
+                return false;
+            }
+
+            if(functionOut.getControl() == ControlSignal.finish){
+                task.finish();
+                Task parent = task.getParent();
+                Asserts.assertTrue(parent != null && !parent.isFailed(), "Parent task can not be null or failed for a control task.");
+                return finish(user, parent);
+            }
+
+            if(functionOut.getControl() == ControlSignal.dispatch){
+                task.setToolOut(null);
+                Asserts.assertTrue(task.getToolOut().getDispatch() != null, "The dispatch tool out has no dispatched tool.");
+                return onFunctionCall(user, task.getToolOut().getDispatch().getFunctionCall(), isUserTurn, null);
+            }
+
+            throw new EpisodeException("Control signal " + functionOut.getControl().name() + " is not recognized.");
+        }
+
+        task.addAssistFunctionCall(user, functionCall);
+        task.addFunctionCallResult(user, functionOut.getOutput());
+        if(functionOut.getStatus() == AgentToolOutStatus.error){
+            return fail(user, task, new TaskFailure(functionOut.getOutput()));
+        }
+
+        if(functionOut.getStatus() == AgentToolOutStatus.success){
+            return onControl(user, isUserTurn, task);
+        }
+
+        throw new EpisodeException("The agent tool out status " + functionOut.getStatus().name() + " is not recognized.");
     }
     
+    @Override
     public boolean onFunctionCallException(String user, FunctionCall call, Exception e, boolean isUserTurn){
-        Task task = this.solver.solveCurrentTask(user);
+        Task task = this.solver.getCurrentTask(user);
         Asserts.assertTrue(task != null, "Episode is finished prematurely.");
         Asserts.assertTrue(!task.isFailed(), "Task is failed unexpactivly.");
 
@@ -251,6 +341,7 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
         return true;
     }
 
+    @Override
     public boolean onFunctionExecutionException(String user, Tool t, FunctionCall call, Exception e, boolean isUserTurn){
         AgentToolOut executionErrToolOut = null;
         if(e != null && !StringUtil.isNullOrEmpty(e.getMessage())){
@@ -264,4 +355,5 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
     public void forceBreak(String user, boolean forceBreak){
         setContext(user, CONTEXT_KEY_FORCE_BREAK, forceBreak);
     }
+
 }

@@ -1,7 +1,5 @@
 package im.langchainjava.agent.zeroshot;
 
-import static im.langchainjava.llm.LlmService.ROLE_SYSTEM;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -9,9 +7,7 @@ import java.util.List;
 
 import im.langchainjava.agent.episode.EpisodeSolver;
 import im.langchainjava.agent.episode.EpisodicPromptProvider;
-import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.Function;
-import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.tool.Tool;
 import im.langchainjava.utils.JsonUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -129,21 +125,5 @@ public class ZeroShotThoughtChainPromptProvider extends EpisodicPromptProvider {
         }
         return funs;
     }
-
-    // @Override
-    // public List<ChatMessage> getPrompt(String user){
-    //     List<ChatMessage> chats = new ArrayList<>();
-    //     String prompt = getRole() + getInsight() + getStatement();
-    //     ChatMessage sysMsg = new ChatMessage(ROLE_SYSTEM, prompt);
-    //     chats.add(sysMsg);
-    //     chats.addAll(super.getEpisodicHistory(user));
-    //     return chats;
-    // }
-
-    @Override
-    public FunctionCall getFunctionCall(String user) {
-        return null;
-    }
-
 
 }

@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 
 import im.langchainjava.agent.episode.model.Task;
@@ -47,7 +46,7 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
     }
 
     public List<ChatMessage> getEpisodicControlPrompt(String user){
-        Task task = this.solver.solveCurrentTask(user);
+        Task task = this.solver.getCurrentTask(user);
 
         Asserts.assertTrue(task != null, "Episode finished prematurely while calling getPrompt.");
         Asserts.assertTrue(!task.isFailed(), "Episode is failed while calling getEpisodicControlPrompt.");
@@ -58,7 +57,7 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
                 .append("You are a conversation observer.\r\n")
                 // .append("Your will be provided with a conversation between the ai assistant and the user. The conversation includes function calls.\r\n")
                 .append("Your task is to observe the conversation and perform the following steps:\r\n")
-                .append("\"\"\"\r\n");
+                ;
         // if(task.getExtractions() == null || task.getExtractions().isEmpty()){
         if(task.getExtraction() == null){
             String msg = "The output extractions are not defined in task " + task.getName() + ".";
@@ -70,11 +69,25 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
         //     promptBuilder.append((++i) + ". " + e.getKey() + ": " + e.getValue() + ". And use it as the function input `" + e.getKey() + "`.\r\n");
         // }
         TaskExtraction e = task.getExtraction();
-        promptBuilder.append( "1. Extract " + e.getDescription() + " from the chat history and use it as the function input `" + e.getName() + "`.\r\n");
-        promptBuilder.append( "2. Decide whether the value of "+ e.getName() + " is a good match for its description: " + e.getDescription() + " And put yes or no to the function input `match`.\r\n");
+        promptBuilder
+                .append("\"\"\"\r\n")
+                .append( "1. Extract " + e.getExtraction() + " from the chat history and use it as the function input `" + e.getName() + "`. ");
+        if(!e.getEnumm().isEmpty()){
+            promptBuilder.append(e.getExtraction() + " must be one of {{");
+            int i = 0;
+            for(String item : e.getEnumm()){
+                promptBuilder.append(item);
+                if(i++ < e.getEnumm().size() - 1){
+                    promptBuilder.append(",");
+                }
+            }
+            promptBuilder.append("}}.");
+        }
+        promptBuilder.append("\r\n")
+                .append( "2. Decide whether the value of "+ e.getName() + " is a good match for its description: " + e.getExtraction() + " And put yes or no to the function input `match`.\r\n")
+                .append("\"\"\"\r\n");
         
         String prompt = promptBuilder
-                .append("\"\"\"\r\n")
                 .append("Always only extract values from the conversation. \r\n")
                 .append("Don't make assumptions about what values to plug into the function. \r\n")
                 .append("You should give the function input a blank value if you don't know what value to put.\r\n")
@@ -87,7 +100,7 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
     }
 
     public List<Function> getEpisodicControlFunctions(String user){
-        Task task = this.solver.solveCurrentTask(user);
+        Task task = this.solver.getCurrentTask(user);
         Asserts.assertTrue(task != null, "Current Task is null while calling getInvokableControllerFunction.");
 
         EpisodicControlTool controller = task.getEpisodicControlFunction();
@@ -97,7 +110,7 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
     }
 
     public FunctionCall getEpisodicControlFunctionCall(String user){
-        Task task = this.solver.solveCurrentTask(user);
+        Task task = this.solver.getCurrentTask(user);
         Asserts.assertTrue(task != null, "Current Task is null while calling getInvokableControllerFunction.");
 
         EpisodicControlTool controller = task.getEpisodicControlFunction();
@@ -105,14 +118,6 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
 
         return controller.getFunctionCall();
     }
-
-    // public List<ChatMessage> getEpisodicHistory(String user){
-    //     Task task = this.solver.solveCurrentTask(user);
-    //     Asserts.assertTrue(task != null, "Current Task is null while getting history.");
-    //     Asserts.assertTrue(!task.isFailed(), "Episode is failed while getting history.");
-    //     // Asserts.assertTrue(task.getHistory() != null && !task.getHistory().isEmpty(), "There is no chat history in the task while getting history.");
-    //     return getEpisodicHistoryForTask(user, task);
-    // }
 
     public List<ChatMessage> getEpisodicHistoryForTask(String user, Task task){
         List<ChatMessage> history = new ArrayList<>();
@@ -123,9 +128,6 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
             if(StringUtil.isNullOrEmpty(extracted)){
                 continue;
             }
-            // for(Entry<String, String> tr : taskResult.entrySet()){
-            //     facts.add("`" + tr.getKey() + "` = " + tr.getValue());
-            // }
             facts.add("`" + e.getKey() + "` = " + extracted);
         }
         if(!facts.isEmpty()){
@@ -137,16 +139,14 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
             ChatMessage prefix = new ChatMessage(ROLE_SYSTEM, prefixBuilder.toString(), user, null);
             history.add(prefix);
         }
-        if(task.getHistory() != null){
-            history.addAll(task.getHistory());
-        }
+        history.addAll(task.getStackHistory());
         return history;
     }
 
     
     @Override
-    public List<ChatMessage> getPrompt(String user){
-        Task task = this.solver.solveCurrentTask(user);
+    public List<ChatMessage> getPrompt(String user, boolean isUserTurn){
+        Task task = this.solver.getCurrentTask(user);
         Asserts.assertTrue(task != null, "Episode finished prematurely while calling getPrompt.");
         Asserts.assertTrue(!task.isFailed(), "Episode is failed while calling getEpisodicControlPrompt.");
 
@@ -158,8 +158,19 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
         //     taskSb.append((++i) + ". " + e.getKey() + ": " + e.getValue() + ". And use it as the function input `" + e.getKey() + "`.\r\n");
         // }
         TaskExtraction e = task.getExtraction();
-        StringBuilder taskSb = new StringBuilder("Your task is to find out what is " + e.getDescription() + ".\r\n")
-                .append("You can finish your task by either talking to the user or using a function call.\r\n");
+        StringBuilder taskSb = new StringBuilder("Your task is to find out what is " + e.getExtraction() + ".\r\n");
+        if(!e.getEnumm().isEmpty()){
+            taskSb.append(e.getExtraction() + " must be one of {{");
+            int i = 0;
+            for(String item : e.getEnumm()){
+                taskSb.append(item);
+                if(i ++ < e.getEnumm().size() - 1){
+                    taskSb.append(",");
+                }
+            }
+            taskSb.append("}}.\r\n");
+        }
+        taskSb.append("You can work on your task by either talking to the user or using a function call.\r\n");
         // taskSb.append("\"\"\"\r\n");
 
         StringBuilder promptSb = new StringBuilder(dateStr)
@@ -170,7 +181,41 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
         ChatMessage sysMsg = new ChatMessage(ROLE_SYSTEM, promptSb.toString());
         chats.add(sysMsg);
         chats.addAll(getEpisodicHistoryForTask(user, task));
+
+        StringBuilder taskMsgBuilder = new StringBuilder()
+                .append("Think is ")
+                .append(task.getExtraction().getExtraction())
+                .append(" provided? If ")
+                .append(task.getExtraction().getExtraction())
+                .append(" is not provided, think what to do next and get it done. Otherwise finish the task.")
+                // .append("I can ask user to provide more information. ")
+                // .append(" I should call finish task function when I already know ")
+                // .append(task.getExtraction().getDescription())
+                // .append(". I should not call finish task function if ")
+                // .append(task.getExtraction().getDescription())
+                // .append(" is still unknown.")
+                ;
+        ChatMessage taskMsg = new ChatMessage(ROLE_SYSTEM, 
+                 taskMsgBuilder.toString(), null, null);
+        chats.add(taskMsg);
         return chats;
+    }
+
+    @Override
+    public FunctionCall getFunctionCall(String user) {
+        Task task = this.solver.getCurrentTask(user);
+        Asserts.assertTrue(task != null, "Episode finished prematurely while calling getPrompt.");
+        Asserts.assertTrue(!task.isFailed(), "Episode is failed while calling getEpisodicControlPrompt.");
+
+        if(task.getFunction() != null && task.getToolOut() == null){
+            // if a task is a function call task and the function is not invoked yet.
+            // must force the function call.
+            // this only happens at the start of the episode.
+            return task.getFunctionCall();
+        }
+
+        return null;
+
     }
 
 
