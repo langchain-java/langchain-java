@@ -9,7 +9,8 @@ public class ToolUtils {
             if(call.getParsedArguments().get(paramName).isNull()){
                 return null;
             }
-            return call.getParsedArguments().get(paramName).asText();
+            String retText = call.getParsedArguments().get(paramName).asText();
+            return retText;
         }
         return null;
     }

@@ -47,23 +47,10 @@ public class ToolOuts{
         this.controlOutput = output;
     }
 
-    // public ToolOuts message(String key, String message){
-    //     if(this.messages.containsKey(key)){
-    //         throw new ToolException("Duplcated message key: " + key);
-    //     }
-    //     // this.messageKeys.add(key);
-    //     this.messages.put(key, message);
-    //     return this;
-    // } 
     public ToolOuts message(String msg){
         this.message = msg;
         return this;
     }
-
-    // public ToolOuts output(String key, String message){
-    //     this.controlOutput.put(key, message);
-    //     return this;
-    // }
 
     public ToolOuts agentControl(ControlSignal control){
         this.control = control;
@@ -74,17 +61,6 @@ public class ToolOuts{
         this.agentError = error;
         return this;
     }
-
-    // public ToolOuts errorMessage(String msg){
-    //     this.errorMessage = msg;
-    //     return this;
-    // }
-
-    // public ToolOuts wrapAssistantMessage(String message){
-    //     this.wrappedMessage = message;
-    //     return this;
-    // }
-
     
     public ToolOut get(){
         if(this.status == null){
@@ -94,6 +70,12 @@ public class ToolOuts{
         }
     }
 
+    public static AgentToolOut onUi(String user, String message){
+        return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.control)
+                        .message(message)
+                        .agentControl(ControlSignal.ui)
+                        .get();
+    }
 
     public static AgentToolOut onAskUser(String user, String message){
         return (AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.control)
@@ -108,15 +90,15 @@ public class ToolOuts{
                         .get();
     }
 
-    public static AgentToolOut onResult(String user, String result, Tool dispatch){
+    public static AgentToolOut onResult(String user, String result, Tool successor){
         return ((AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.success)
                         .message(result)
-                        .get()).successor(dispatch);
+                        .get()).successor(successor);
     }
 
-    public static AgentToolOut onResult(String user, Tool dispatch){
+    public static AgentToolOut onResult(String user, Tool successor){
         return ((AgentToolOut) ToolOuts.of(user, AgentToolOutStatus.success)
-                        .get()).successor(dispatch);
+                        .get()).successor(successor);
     }
 
     public static AgentToolOut onDispatch(String user, Tool dispatch){

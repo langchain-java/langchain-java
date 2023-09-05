@@ -1,5 +1,6 @@
 package im.langchainjava.agent.episode;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -9,8 +10,10 @@ import im.langchainjava.agent.command.CommandParser;
 import im.langchainjava.agent.episode.model.Task;
 import im.langchainjava.agent.episode.model.TaskFailure;
 import im.langchainjava.agent.functioncall.FunctionCallAgent;
+import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.llm.entity.ChatMessage;
+import im.langchainjava.llm.entity.function.Function;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.tool.AgentToolOut;
@@ -31,6 +34,7 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
     final EpisodicPromptProvider promptProvider;
     final EpisodeSolver solver;
     final LlmService llm;
+    final ImService im;
 
     boolean showPrompt = false;
 
@@ -43,8 +47,9 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
     public abstract void onAssistantFunctionCall(String user, Tool tool, FunctionCall functionCall, AgentToolOut functionOut, boolean isUserTurn);
     public abstract void onAssistantFunctionCallError(String user, FunctionCall functionCall, Exception e, boolean isUserTurn);
 
-    public EpisodicAgent(LlmService llm, EpisodicPromptProvider prompt, ChatMemoryProvider memory, CommandParser c) {
+    public EpisodicAgent(ImService im, LlmService llm, EpisodicPromptProvider prompt, ChatMemoryProvider memory, CommandParser c) {
         super(memory, c);
+        this.im = im;
         this.promptProvider = prompt;
         this.solver = prompt.getSolver();
         this.llm = llm;
@@ -67,33 +72,39 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
             return task.updateParams(call) == null;
         }
 
-        solver.solveFunctionCall(user, call);
+        solver.solveFunctionCall(user, call, null);
         return true;
     }
 
     @Override
     public boolean onChat(String user, boolean isUserTurn){
         Task task = this.solver.resolveCurrentTask(user);
-
+        
         if(task == null){
             onFinalAnswer(user);
             return false;
         }
 
+        log.info("Path of task:" + task.getPath());
         if(task.getFunction() != null){
             if(task.getToolOut() == null){
-                if(!task.isReady()){
+
+                if(task.isForceGenerate() || !task.isReady()){
                     onAgent(user, isUserTurn, task);
-                }
+                } 
+                
                 Task unresolvable = task.getOutstandingUnresolvableDependency();
                 if(unresolvable != null && unresolvable.getFunction() != null){
-                    this.solver.solveFunctionCall(user, unresolvable.getFunctionCall());
+                    this.solver.solveFunctionCall(user, unresolvable.getFunctionCall(), unresolvable.getFunction());
                     return true;
                 }
 
-                return handleFunctionCall(user, task.getFunction(), task.getFunctionCall(), isUserTurn);
+                boolean ret = handleFunctionCall(user, task.getFunction(), task.getFunctionCall(), isUserTurn);
+                
+                return ret;
             }
         }
+
 
         return onControl(user, isUserTurn, task);
     }
@@ -105,8 +116,16 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
         if(showPrompt){
             showMessages("agent", promptProvider.getPrompt(user, isUserTurn));
         }
-        FunctionCall call = promptProvider.getFunctionCall(user);
-        chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user, isUserTurn), promptProvider.getFunctions(user), call, this);
+        FunctionCall call = null;
+        List<Function> functions = null;
+        if(task.getFunction() != null && task.getToolOut() == null){
+            call = task.getFunctionCall();
+            functions = Collections.singletonList(task.getFunction().getFunction());
+        }else{
+            functions = this.promptProvider.getFunctions(user);
+        }
+        
+        chatMessage = llm.chatCompletion(user, promptProvider.getPrompt(user, isUserTurn), functions, call, this);
         if(chatMessage == null){
             // all exceptions causing chatMessage == null are handled in chatCompletion. 
             // We simple do control logic here.
@@ -150,7 +169,9 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
                 onControllerException(user, "The controller function returns null");
                 return false;
             }
-            return doControl(user, out, task, isUserTurn); 
+
+            Asserts.assertTrue(out instanceof ControllorToolOut, "The episodic controller does not return a controller tool out.");
+            return doControl(user, (ControllorToolOut)out, task, isUserTurn); 
         }catch(Exception e){
             e.printStackTrace();
             onControllerException(user, "There is an exception while invoking controller function.\n" + e.getMessage());
@@ -158,10 +179,7 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
         }
     }
 
-    private boolean doControl(String user, ToolOut output, Task task, boolean isUserTurn){
-        Asserts.assertTrue(output instanceof ControllorToolOut, "The episodic controller does not return a controller tool out.");
-        ControllorToolOut out = (ControllorToolOut) output;
-
+    private boolean doControl(String user, ControllorToolOut out, Task task, boolean isUserTurn){
         //update task result
         log.info(out.getOutput());
         task.updateResult(out.getOutput());
@@ -184,7 +202,6 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
         }
         
         if(out.getStatus() == Status.next){
-
             //if the task is a function call task and the function call is a success, finish the function call task.
             if(task.getFunction() != null){
                 Asserts.assertTrue(task.getToolOut() != null, "Function call task does not produce a tool out in the task.");
@@ -192,7 +209,6 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
                     return finish(user, task);
                 }
             }
-
 
             if(next(user)){
                 return onAgent(user, isUserTurn, task);
@@ -212,7 +228,7 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
     //insert the successor function call task to the parent task input.
     private void onTaskFinishedOrFailed(String user, Task task){
         if(task.getSuccessor() != null){
-            solver.solveFunctionCall(user, task.getSuccessor().getFunctionCall());
+            solver.solveFunctionCall(user, task.getSuccessor().getFunctionCall(), task.getSuccessor());
         }
     }
 
@@ -285,11 +301,19 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
         }
 
         if(functionOut.getStatus() == AgentToolOutStatus.control){
-            task.addAssistMessage(user, functionOut.getOutput());
-            onAssistantMessage(user, functionOut.getOutput());
+            if(!StringUtil.isNullOrEmpty(functionOut.getOutput())){
+                task.addAssistMessage(user, functionOut.getOutput());
+                onAssistantMessage(user, functionOut.getOutput());
+            }
+
+            if(functionOut.getControl() == ControlSignal.ui){
+                // onAssistantMessage(user, functionOut.getOutput());
+                task.setToolOut(null);
+                onWaitUserInput(user);
+                return false;
+            }
 
             if(functionOut.getControl() == ControlSignal.form){
-                // this.solver.popCurrentTask(user);
                 task.finish();
                 onWaitUserInput(user);
                 return false;
@@ -304,20 +328,28 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
 
             if(functionOut.getControl() == ControlSignal.dispatch){
                 task.setToolOut(null);
-                Asserts.assertTrue(task.getToolOut().getDispatch() != null, "The dispatch tool out has no dispatched tool.");
-                return onFunctionCall(user, task.getToolOut().getDispatch().getFunctionCall(), isUserTurn, null);
+                // for(Task t : task.getInputs().values()){
+                //     t.setExtracted(null);
+                //     t.setSuccess(false);
+                // }
+                Asserts.assertTrue(functionOut.getDispatch() != null, "The dispatch tool out has no dispatched tool.");
+                return onFunctionCall(user, functionOut.getDispatch().getFunctionCall(), isUserTurn, null);
             }
 
             throw new EpisodeException("Control signal " + functionOut.getControl().name() + " is not recognized.");
         }
 
         task.addAssistFunctionCall(user, functionCall);
-        task.addFunctionCallResult(user, functionOut.getOutput());
+        task.addFunctionCallResult(user, functionCall, functionOut.getOutput());
         if(functionOut.getStatus() == AgentToolOutStatus.error){
             return fail(user, task, new TaskFailure(functionOut.getOutput()));
         }
 
         if(functionOut.getStatus() == AgentToolOutStatus.success){
+            if(task.isDirectExtraction()){
+                task.updateResult(task.getToolOut().getOutput());
+                return finish(user, task);
+            }
             return onControl(user, isUserTurn, task);
         }
 
@@ -332,9 +364,9 @@ public abstract class EpisodicAgent extends FunctionCallAgent{
 
         task.addAssistFunctionCall(user, call);
         if(e != null && !StringUtil.isNullOrEmpty(e.getMessage())){
-            task.addFunctionCallResult(user, e.getMessage());
+            task.addFunctionCallResult(user, call, e.getMessage());
         }else{
-            task.addFunctionCallResult(user, "There is an exception while making function call " + call.getName());
+            task.addFunctionCallResult(user, call, "There is an exception while making function call " + call.getName());
         }
         
         onAssistantFunctionCallError(user, call, e, isUserTurn);

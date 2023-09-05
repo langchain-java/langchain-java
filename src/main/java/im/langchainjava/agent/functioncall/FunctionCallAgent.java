@@ -55,6 +55,7 @@ public abstract class FunctionCallAgent extends CommandAgent{
             }
             return onFunctionCallResult(user, tool, call, (AgentToolOut) toolOut, isUserTurn);
         }catch(Exception e){
+            e.printStackTrace();
             return onFunctionExecutionException(user, tool, call, e, isUserTurn);
         }
     }

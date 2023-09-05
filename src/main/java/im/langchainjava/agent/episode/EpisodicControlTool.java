@@ -32,6 +32,7 @@ public class EpisodicControlTool extends Tool{
     final FocusManager focusManager;
 
     public EpisodicControlTool(Task task, FocusManager focusManager) {
+        super(false);
         this.task = task;
         this.focusManager = focusManager;
         this.properties = new HashMap<>();

@@ -43,6 +43,7 @@ public class AgentToolOut implements ToolOut{
     }
 
     public static enum ControlSignal{
+        ui,
         dispatch,
         form,
         finish;        

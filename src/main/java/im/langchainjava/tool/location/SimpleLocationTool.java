@@ -18,7 +18,6 @@ import im.langchainjava.tool.ToolOut;
 import im.langchainjava.tool.ToolOuts;
 import im.langchainjava.tool.ToolUtils;
 import im.langchainjava.tool.askuser.form.FormBuilders;
-import im.langchainjava.utils.JsonUtils;
 import im.langchainjava.utils.StringUtil;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -43,13 +42,15 @@ public class SimpleLocationTool extends Tool{
     int number;
 
     public SimpleLocationTool(ImService im, LocationService location, LlmService llm){
+        super(false);
+
         this.im = im;
         this.locationService = location;
         this.llm = llm;
         this.number = NUM_RESULT;
 
-        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_CITY, PARAM_DESC_CITY));
-        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_PLACE, PARAM_DESC_PLACE));
+        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_CITY, PARAM_DESC_CITY), true, false, true, false);
+        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_PLACE, PARAM_DESC_PLACE), true, false, true, false);
     }
 
     public SimpleLocationTool numberOfResults(int num){
@@ -107,8 +108,9 @@ public class SimpleLocationTool extends Tool{
                 locations.add(output);
             }
 
-            this.im.sendMessageToUser(user, formatResults(locations));
-            return ToolOuts.onResult(user, JsonUtils.fromList(locations));
+            String result = formatResults(locations);
+            this.im.sendMessageToUser(user, result);
+            return ToolOuts.onResult(user, result);
             // ChatMessage response = null;
             // LocationLlmErrorHandler h = new LocationLlmErrorHandler(locations, false);
             // String query = "查找" + city + place+ "的地址";

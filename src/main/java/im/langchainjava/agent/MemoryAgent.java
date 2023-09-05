@@ -5,6 +5,7 @@ import java.util.List;
 import im.langchainjava.agent.command.CommandParser;
 import im.langchainjava.agent.episode.EpisodicAgent;
 import im.langchainjava.agent.episode.EpisodicPromptProvider;
+import im.langchainjava.im.ImService;
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.memory.ChatMemoryProvider;
@@ -18,8 +19,8 @@ public abstract class MemoryAgent extends EpisodicAgent{
 
     final private ChatMemoryProvider memoryProvider;
 
-    public MemoryAgent(LlmService llm, EpisodicPromptProvider prompt, ChatMemoryProvider memory, CommandParser c, List<Tool> tools) {
-        super(llm, prompt, memory, c);
+    public MemoryAgent(ImService im, LlmService llm, EpisodicPromptProvider prompt, ChatMemoryProvider memory, CommandParser c, List<Tool> tools) {
+        super(im, llm, prompt, memory, c);
         this.memoryProvider = memory;
     }
 

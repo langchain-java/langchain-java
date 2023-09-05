@@ -42,12 +42,14 @@ public class SimpleSearchGoogleTool extends Tool{
     int number;
 
     public SimpleSearchGoogleTool(ImService im, SearchService searchService, LlmService llm){
+        super(false);
+
         this.im = im;
         this.searchService = searchService;
         this.llm = llm;
         this.number = NUM_RESULT;
 
-        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_QUERY, PARAM_DESC));
+        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_QUERY, PARAM_DESC), true, false, true, false);
         extractionName(EXTRACTION_NAME);
         extraction(EXTRACTION);
     }

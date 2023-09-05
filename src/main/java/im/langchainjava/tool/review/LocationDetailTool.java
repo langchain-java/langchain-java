@@ -32,11 +32,12 @@ public class LocationDetailTool extends Tool{
     LlmService llm;
 
     public LocationDetailTool(ImService im, ReviewService reviewService, LlmService llm, SearchLocationTool searchLocationTool){
+        super(false);
         this.im = im;
         this.reviewService = reviewService;
         this.llm = llm;
 
-        dependencyAndProperty(PARAM_ID, PARAM_DESC, searchLocationTool, true);
+        dependencyAndProperty(PARAM_ID, PARAM_DESC, searchLocationTool, true, false, true, false);
     }
 
     @Override

@@ -29,9 +29,10 @@ public class DateTimeTool extends Tool{
     private static String PARAM_DESC = "The offset in days from today. Below listed meaning of some offset values: \"\"\"\n -1: Yesterday;\r\n 0: Today;\r\n 1: Tomorrow; \r\n 2: The day after tomorrow.\"\"\"";
 
     public DateTimeTool(ImService im, LlmService llm){
+        super(false);
         this.im = im;
         this.llm = llm;
-        dependencyAndProperty(im, FormBuilders.integerForm(llm, PARAM_OFFSET, PARAM_DESC));
+        dependencyAndProperty(im, FormBuilders.integerForm(llm, PARAM_OFFSET, PARAM_DESC), true, false, true, true);
     }
 
     @Override

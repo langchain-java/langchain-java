@@ -22,19 +22,24 @@ public class EpisodeSolver implements TaskSolver{
 
     public static String CONTEXT_KEY_TASK = "episode";
 
-    final TaskBuilder initialTaskBuilder;
     final ChatMemoryProvider memory;
     final Map<String, Tool> tools;
-
-    public EpisodeSolver(ChatMemoryProvider memory, List<Tool> tools, TaskBuilder initialTaskBuilder){
+    
+    TaskBuilder initialTaskBuilder;
+    
+    public EpisodeSolver(ChatMemoryProvider memory, List<Tool> tools){
         Asserts.assertTrue(tools != null && !tools.isEmpty(), "Tools can not be null or empty.");
-        this.initialTaskBuilder = initialTaskBuilder; 
+        
         this.memory = memory;
         this.tools = new HashMap<>();
         for(Tool t : tools){
             Asserts.assertTrue(t != null && !StringUtil.isNullOrEmpty(t.getName()), "One of the given tools are null or without a tool name.");
             this.tools.put(t.getName(), t);
         }
+    }
+
+    public void initialTask(TaskBuilder initialTaskBuilder){
+        this.initialTaskBuilder = initialTaskBuilder; 
     }
 
     public Task getCurrentTask(String user){
@@ -119,12 +124,15 @@ public class EpisodeSolver implements TaskSolver{
     }
 
     @Override
-    public Task solveFunctionCall(String user, FunctionCall call) {
+    public Task solveFunctionCall(String user, FunctionCall call, Tool given) {
         
         Asserts.assertTrue(call != null && call.getName() != null, "Function call is null or without a name.");
-        Asserts.assertTrue(this.tools.containsKey(call.getName()), "There is no tool matching function call " + call.getName() + ".");
-
-        Tool t = tools.get(call.getName());
+        
+        Tool t = given;
+        if(t == null){
+            Asserts.assertTrue(this.tools.containsKey(call.getName()), "There is no tool matching function call " + call.getName() + ".");
+            t = tools.get(call.getName());
+        }
 
         TaskExtraction te = new TaskExtraction(t.getExtractionName(), t.getExtraction());
         Map<String, JsonNode> parsedParam = Tool.parseFunctionCallParam(call);
@@ -140,8 +148,8 @@ public class EpisodeSolver implements TaskSolver{
 
         Asserts.assertTrue(parent != null && !parent.isFailed(), "Parent task is null or is failed prematurely.");
 
-        Task task = new Task(null, user, parent, t, param, te, true, true);
-        parent.input(te.getName(), task);
+        Task task = new Task(null, user, parent, t, param, te, true, true, true, false, t.isForceGenerate());
+        // parent.input(te.getName(), task);
         
         getEpisode(user).addTask(task);
         return this.resolveCurrentTask(user);

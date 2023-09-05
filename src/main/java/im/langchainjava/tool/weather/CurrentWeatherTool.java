@@ -37,11 +37,13 @@ public class CurrentWeatherTool extends Tool{
     // int number;
 
     public CurrentWeatherTool(ImService im, WeatherService weatherService, LlmService llm){
+        super(false);
+
         this.im = im;
         this.weatherService = weatherService;
         this.llm = llm;
-        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_CITY, PARAM_DESC_CITY));
-        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_PLACE, PARAM_DESC_PLACE));
+        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_CITY, PARAM_DESC_CITY), true, false, true, false);
+        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_PLACE, PARAM_DESC_PLACE), true, false, true, false);
     }
 
     // public CurrentWeatherTool numberOfResults(int num){

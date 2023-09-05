@@ -15,12 +15,15 @@ import im.langchainjava.llm.entity.ChatMessage;
 import im.langchainjava.llm.entity.function.Function;
 import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.prompt.ChatPromptProvider;
+import im.langchainjava.tool.Tool;
 import im.langchainjava.utils.StringUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class EpisodicPromptProvider implements ChatPromptProvider{
+
+    public abstract List<Tool> getTools();
 
     private static String DEF_ROLE = "You are an ai assistant. ";
     private static String DEF_INSIGHT = "You may talk to the user or use a function to help you finish the task. You should finish the task by performing the following actions: \r\n"
@@ -152,11 +155,7 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
 
         List<ChatMessage> chats = new ArrayList<>();
         String dateStr = "The current UTC date is: " + new SimpleDateFormat("yyyyMMdd").format(new Date()) + ". \r\n";
-        // StringBuilder taskSb =  new StringBuilder("Your task is to find the following values: \r\n \"\"\"\r\n");
-        // int i = 0;
-        // for(Entry<String, String> e: task.getExtractions().entrySet()){
-        //     taskSb.append((++i) + ". " + e.getKey() + ": " + e.getValue() + ". And use it as the function input `" + e.getKey() + "`.\r\n");
-        // }
+
         TaskExtraction e = task.getExtraction();
         StringBuilder taskSb = new StringBuilder("Your task is to find out what is " + e.getExtraction() + ".\r\n");
         if(!e.getEnumm().isEmpty()){
@@ -170,7 +169,9 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
             }
             taskSb.append("}}.\r\n");
         }
-        taskSb.append("You can work on your task by either talking to the user or using a function call.\r\n");
+        taskSb.append("You can work on your task by either talking to the user or using a function call.\r\n")
+                .append("Don't make assumptions about what values to plug into the function. \r\n")
+                .append("You should give the function input a blank value if you don't know what value to put.\r\n");
         // taskSb.append("\"\"\"\r\n");
 
         StringBuilder promptSb = new StringBuilder(dateStr)
@@ -182,23 +183,32 @@ public abstract class EpisodicPromptProvider implements ChatPromptProvider{
         chats.add(sysMsg);
         chats.addAll(getEpisodicHistoryForTask(user, task));
 
-        StringBuilder taskMsgBuilder = new StringBuilder()
-                .append("Think is ")
-                .append(task.getExtraction().getExtraction())
-                .append(" provided? If ")
-                .append(task.getExtraction().getExtraction())
-                .append(" is not provided, think what to do next and get it done. Otherwise finish the task.")
+        // StringBuilder taskMsgBuilder = new StringBuilder()
+        //         .append("Think is ")
+        //         .append(task.getExtraction().getExtraction())
+        //         .append(" provided? If ")
+        //         .append(task.getExtraction().getExtraction())
+        //         .append(" is not provided, think what to do next and get it done. Otherwise finish the task.")
                 // .append("I can ask user to provide more information. ")
                 // .append(" I should call finish task function when I already know ")
                 // .append(task.getExtraction().getDescription())
                 // .append(". I should not call finish task function if ")
                 // .append(task.getExtraction().getDescription())
                 // .append(" is still unknown.")
-                ;
-        ChatMessage taskMsg = new ChatMessage(ROLE_SYSTEM, 
-                 taskMsgBuilder.toString(), null, null);
-        chats.add(taskMsg);
+                // ; 
+        // ChatMessage taskMsg = new ChatMessage(ROLE_SYSTEM, 
+        //          taskMsgBuilder.toString(), null, null);
+        // chats.add(taskMsg);
         return chats;
+    }
+
+    @Override
+    public List<Function> getFunctions(String user) {
+        List<Function> funs = new ArrayList<>();
+        for(Tool t : getTools()){
+            funs.add(t.getFunction());
+        }
+        return funs;
     }
 
     @Override

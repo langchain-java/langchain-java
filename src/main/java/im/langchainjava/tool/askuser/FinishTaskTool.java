@@ -28,7 +28,7 @@ public class FinishTaskTool extends Tool{
     ImService im;
 
     public FinishTaskTool(ImService im){
-        super();
+        super(false);
         this.im = im;
         extractionName(EXTRACTION_NAME);
         extraction(EXTRACTION);

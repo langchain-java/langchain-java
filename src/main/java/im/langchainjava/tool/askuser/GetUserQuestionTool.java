@@ -25,6 +25,7 @@ public class GetUserQuestionTool extends Tool{
     ImService im;
 
     public GetUserQuestionTool(ImService im){
+        super(false);
         this.im = im;
         extractionName(EXTRACT);
         extraction(EXTRACT_DESC);

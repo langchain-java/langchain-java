@@ -22,6 +22,7 @@ public class SelfIntroductionTool extends Tool{
     ImService im;
 
     public SelfIntroductionTool(ImService im){
+        super(true);
         this.im = im;
     }
 
@@ -58,11 +59,11 @@ public class SelfIntroductionTool extends Tool{
     @Override
     public ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory) {
         String message = ToolUtils.getStringParam(call, "message_to_user");
-        if(!StringUtil.isNullOrEmpty(message)){
-            im.sendMessageToUser(user, message);
-        }
+        // if(!StringUtil.isNullOrEmpty(message)){
+            // im.sendMessageToUser(user, message);
+        // }
 
-        return ToolOuts.success(user, message);
+        return ToolOuts.onAskUser(user, message);
     }
     
 }

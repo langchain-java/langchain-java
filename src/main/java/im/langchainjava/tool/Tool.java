@@ -14,19 +14,14 @@ import im.langchainjava.llm.entity.function.FunctionParameter;
 import im.langchainjava.llm.entity.function.FunctionProperty;
 import im.langchainjava.memory.ChatMemoryProvider;
 import im.langchainjava.tool.askuser.AskUserTool;
-import im.langchainjava.tool.askuser.form.FormBuilder;
+import im.langchainjava.tool.askuser.form.SmartFormBuilder;
 import im.langchainjava.utils.JsonUtils;
 import im.langchainjava.utils.StringUtil;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public abstract class Tool {
-
-    // public static String KEY_FUNC_OUT = "Function";
-    // public static String KEY_THOUGHT = "Thought";
-    // public static String KEY_CONTROL_SUMMARY = "Summary";
-    // public static String KEY_CONTROL_ASK = "Ask";
-
     public static String PARAMETER_TYPE_OBJECT = "object";
     public static String PARAMETER_TYPE_STRING = "string";
 
@@ -50,23 +45,19 @@ public abstract class Tool {
     String desc;
     Map<String, FunctionProperty> parameters;
     List<String> required;
-    // String tag;
     Map<String, ToolDependency> dependencies;
-
-    // final public ChatMemoryProvider memoryProvider;
-    // final Map<String,AsyncToolOut> users = new HashMap<>();
 
     public abstract String getName();
     public abstract String getDescription();
     public abstract Map<String, FunctionProperty> getProperties();
     public abstract List<String> getRequiredProperties();
-    // public abstract FunctionProperty getOutput();
-    // public abstract String getActionPrompt();
-    // public abstract String getTag();
     public abstract Map<String, ToolDependency> getDependencies();
     public abstract ToolOut doInvoke(String user, FunctionCall call, ChatMemoryProvider memory);
 
-    public Tool(){
+    @Getter
+    final private boolean forceGenerate;
+
+    public Tool(boolean forceGenerate){
         // this.memoryProvider = memoryProvider;
         this.observationOnEmptyResult = null;
         this.observationOnError = null;
@@ -80,6 +71,8 @@ public abstract class Tool {
         this.parameters = null;
         this.required = null;
         this.dependencies = null;
+
+        this.forceGenerate = forceGenerate; 
         // this.tag = null;
     }
 
@@ -152,11 +145,11 @@ public abstract class Tool {
         return this;
     }
 
-    public Tool dependencyAndProperty(ImService im, FormBuilder formBuilder){
-        return dependencyAndProperty(im, formBuilder, true);
-    }
+    // public Tool dependencyAndProperty(ImService im, FormBuilder formBuilder, boolean isResolvable){
+    //     return dependencyAndProperty(im, formBuilder, true, isResolvable);
+    // }
 
-    public Tool dependencyAndProperty(String name, String description, Tool tool, boolean isRequired){
+    public Tool dependencyAndProperty(String name, String description, Tool tool, boolean isRequired, boolean isResolvable, boolean isGeneratable, boolean isDirectExtraction){
         emptyProperty();
         FunctionProperty p = FunctionProperty.builder()
                 .type(PARAMETER_TYPE_STRING)
@@ -166,6 +159,9 @@ public abstract class Tool {
 
         ToolDependency td = ToolDependency.builder()
                 .dependency(tool)
+                .resolvable(isResolvable)
+                .generatable(isGeneratable)
+                .directExtraction(isDirectExtraction)
                 .build();
         this.dependencies.put(name, td);
 
@@ -176,7 +172,7 @@ public abstract class Tool {
         return this;
     }
 
-    public Tool dependencyAndProperty(ImService im, FormBuilder formBuilder, boolean isRequired){
+    public Tool dependencyAndProperty(ImService im, SmartFormBuilder formBuilder, boolean isRequired, boolean isResolvable, boolean isGeneratable, boolean isDirectExtraction){
         String property = formBuilder.getName();
         String description = formBuilder.getDescription();
 
@@ -198,6 +194,9 @@ public abstract class Tool {
 
         ToolDependency td = ToolDependency.builder()
                 .dependency(new AskUserTool(im, formBuilder))
+                .resolvable(isResolvable)
+                .generatable(isGeneratable)
+                .directExtraction(isDirectExtraction)
                 .build();
         this.dependencies.put(property, td);
 
@@ -268,13 +267,6 @@ public abstract class Tool {
         return getDependencies();
     }
 
-    // final public String getFunctionTag(){
-    //     if(this.tag != null){
-    //         return this.tag;
-    //     }
-    //     return getTag();
-    // }
-
     final public FunctionParameter getFunctionParameters() {
         return FunctionParameter.builder()
                 .type(PARAMETER_TYPE_OBJECT)
@@ -282,33 +274,6 @@ public abstract class Tool {
                 .required(getFunctionRequiredProperties())
                 .build();
     }
-
-    // public String getWrappedAssisMessage(FunctionCall call, AgentToolOut out){
-    //     return null;
-    // }
-
-    // public ChatMessage getAssistantMessage(String user, FunctionCall call, AgentToolOut out){
-    //     String wrapped = getWrappedAssisMessage(call, out);
-    //     if(wrapped != null){
-    //         return new ChatMessage(LlmService.ROLE_ASSIS, wrapped, user, null);
-    //     }
-    //     return new ChatMessage(LlmService.ROLE_ASSIS, null, user, call);
-    // }
-
-    // public ChatMessage getFunctionOutputMessage(String user, AgentToolOut toolOut){
-    //     if(toolOut.getStatus() == AgentToolOutStatus.success && !StringUtil.isNullOrEmpty(toolOut.getOutput())){
-    //         return new ChatMessage(LlmService.ROLE_FUNC, toolOut.getOutput(), user, null);
-    //     }
-    //     if(toolOut.getStatus() != AgentToolOutStatus.success && !StringUtil.isNullOrEmpty(toolOut.getError())){
-    //         return new ChatMessage(LlmService.ROLE_FUNC, toolOut.getError(), user, null);
-    //     }
-    //     return null;
-    // }
-
-    // @Override
-    // public void onClearedMemory(String user) {
-    //     // this.users.remove(user);
-    // }
 
     final public im.langchainjava.llm.entity.function.Function getFunction(){
         return im.langchainjava.llm.entity.function.Function.builder()
@@ -358,6 +323,10 @@ public abstract class Tool {
         Map<String, JsonNode> params = null;
         if(!StringUtil.isNullOrEmpty(rawArguments)){
             params = JsonUtils.toMapOfJsonNode(rawArguments);
+        }
+
+        if(params == null){
+            params = new HashMap<>();
         }
 
         return params;

@@ -118,12 +118,10 @@ public class ZeroShotThoughtChainPromptProvider extends EpisodicPromptProvider {
     }
 
     @Override
-    public List<Function> getFunctions(String user) {
-        List<Function> funs = new ArrayList<>();
-        for(Tool t : this.tools){
-            funs.add(t.getFunction());
-        }
-        return funs;
+    public List<Tool> getTools() {
+        return this.tools;
     }
+
+
 
 }

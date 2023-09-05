@@ -11,11 +11,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import im.langchainjava.llm.LlmService;
 import im.langchainjava.llm.entity.ChatMessage;
+import im.langchainjava.llm.entity.function.FunctionCall;
 import im.langchainjava.tool.Tool;
+import im.langchainjava.utils.StringUtil;
 import lombok.Getter;
 
 @Getter
-public class FormBuilder{
+public class SmartFormBuilder{
     public static String FORM_QUESTION = "_question";
     private static String USER = "agent";
     private static String FORM_GEN_PROMPT_ROLE      = "You are a text generator.\r\n";
@@ -24,44 +26,46 @@ public class FormBuilder{
     final LlmService llm;
     final String name;
     final String description;
+    final FormParamGenerator formParamGenerator;
 
     String type;
     
     Map<String, String> properties;
     Map<String, String> propertyExtraction;
     
-    public FormBuilder(LlmService llm, String name, String description){
+    public SmartFormBuilder(LlmService llm, String name, String description, FormParamGenerator generator){
         this.llm = llm;
         this.name = name;
         this.description = description;
+        this.formParamGenerator = generator; 
         properties = new HashMap<>();
         propertyExtraction = new HashMap<>();
         propertyExtraction.put(FORM_QUESTION, "Generate a fully formed question in Chinese to ask the user about the `" + name + "`. `" + name + "` is " + description + ".");
     }
 
-    public FormBuilder type(String type){
+    public SmartFormBuilder type(String type){
         this.type = type;
         return this;
     }
 
-    public FormBuilder property(String name, String value){
+    public SmartFormBuilder property(String name, String value){
         this.properties.put(name, value);
         return this;
     }
 
-    public FormBuilder extraction(String name, String extraction){
+    public SmartFormBuilder extraction(String name, String extraction){
         this.propertyExtraction.put(name, extraction);
         return this;
     }
 
-    public FormBuilder extractions(Map<String, String> extractions){
+    public SmartFormBuilder extractions(Map<String, String> extractions){
         if(extractions != null){
             this.propertyExtraction.putAll(extractions);
         }
         return this;
     }
 
-    public Form build(){
+    public Form build(String user, FunctionCall functionCall){
 
         String generatedQuestion = this.name;
 
@@ -102,6 +106,18 @@ public class FormBuilder{
                     continue;
                 }
                 properties.put(e.getKey(), e.getValue().asText());
+            }
+
+            if(this.formParamGenerator != null){
+                Map<String, String> generatedParam = this.formParamGenerator.getParameter(user, functionCall);
+                if(generatedParam != null){
+                    for(Entry<String, String> e : generatedParam.entrySet()){
+                        if(StringUtil.isNullOrEmpty(e.getValue())){
+                            continue;
+                        }
+                        properties.put(e.getKey(), e.getValue());
+                    }
+                }
             }
         }
 

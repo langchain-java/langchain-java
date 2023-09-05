@@ -41,13 +41,15 @@ public class WeatherForecastTool extends Tool{
     LlmService llm;
 
     public WeatherForecastTool(ImService im, WeatherService weatherService, LlmService llm){
+        super(false);
+
         this.im = im;
         this.weatherService = weatherService;
         this.llm = llm;
 
-        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_CITY, PARAM_DESC_CITY));
-        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_PLACE, PARAM_DESC_PLACE));
-        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_DATE, PARAM_DESC_DATE));
+        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_CITY, PARAM_DESC_CITY), true, false, true, false);
+        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_PLACE, PARAM_DESC_PLACE), true, false, true, false);
+        dependencyAndProperty(im, FormBuilders.cityForm(llm, PARAM_DATE, PARAM_DESC_DATE), true, false, true, false);
     }
 
     // public CurrentWeatherTool numberOfResults(int num){

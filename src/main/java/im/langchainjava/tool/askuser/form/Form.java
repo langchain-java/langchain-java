@@ -24,8 +24,8 @@ public class Form {
         }
     }
 
-    public static FormBuilder builder(LlmService llm, String name, String description){
-        return new FormBuilder(llm, name, description);
+    public static SmartFormBuilder builder(LlmService llm, String name, String description, FormParamGenerator generator){
+        return new SmartFormBuilder(llm, name, description, generator); 
     }
 
 }

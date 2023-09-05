@@ -40,14 +40,16 @@ public class SearchLocationTool extends Tool{
     LlmService llm;
 
     public SearchLocationTool(ImService im, ReviewService reviewService, LlmService llm){
+        super(false);
+
         this.im = im;
         this.reviewService = reviewService;
         this.llm = llm;
 
-        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_QUERY, PARAM_DESC_QUERY));
-        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_CATEGORY, PARAM_DESC_CATEGORY), false);
-        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_ADDR, PARAM_DESC_ADDR), false);
-        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_PHONE, PARAM_DESC_PHONE), false);
+        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_QUERY, PARAM_DESC_QUERY), true, false, true, false);
+        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_CATEGORY, PARAM_DESC_CATEGORY), false, false, true, false);
+        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_ADDR, PARAM_DESC_ADDR), false, false, true, false); 
+        dependencyAndProperty(im, FormBuilders.textForm(llm, PARAM_PHONE, PARAM_DESC_PHONE), false, false, true, false);
     }
 
     @Override

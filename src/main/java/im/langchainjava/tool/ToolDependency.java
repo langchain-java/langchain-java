@@ -9,6 +9,7 @@ import lombok.Data;
 @AllArgsConstructor
 public class ToolDependency {
     Tool dependency;
-    // String extraction1;
-    // Map<String, String> extractions;
+    boolean resolvable;
+    boolean generatable;
+    boolean directExtraction;
 }

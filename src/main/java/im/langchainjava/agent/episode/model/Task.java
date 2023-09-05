@@ -24,7 +24,6 @@ import im.langchainjava.tool.Tool;
 import im.langchainjava.tool.ToolDependency;
 import im.langchainjava.tool.ToolUtils;
 import im.langchainjava.tool.AgentToolOut.AgentToolOutStatus;
-import im.langchainjava.tool.AgentToolOut.ControlSignal;
 import im.langchainjava.utils.JsonUtils;
 import im.langchainjava.utils.StringUtil;
 import lombok.Data;
@@ -40,11 +39,15 @@ public class Task{
 
     Tool successor;
 
-    // final String tag;
-
     final boolean optional;
 
     final boolean resolvable;
+
+    final boolean generatable;
+
+    final boolean directExtraction;
+
+    final boolean forceGenerate;
 
     // final Map<String, String> extractions;
     TaskExtraction extraction;
@@ -57,6 +60,8 @@ public class Task{
 
     final Map<String, String> params;
 
+    final List<String> dispatched;
+
     // final Map<String, String> result;
     String extracted;
 
@@ -68,8 +73,7 @@ public class Task{
 
     String name;
 
-    // public Task(Tool func, Map<String, String> param, @NonNull Map<String, String> extractions, boolean optional){
-    public Task(FocusManager focusManager, String user, Task parent, Tool func, Map<String, String> param, TaskExtraction extraction, boolean optional, boolean resolvable){
+    public Task(FocusManager focusManager, String user, Task parent, Tool func, Map<String, String> param, TaskExtraction extraction, boolean optional, boolean resolvable, boolean generatable, boolean directExtraction, boolean forceGenerate){
         this.user = user;
         this.parent = parent;
         this.function = func;
@@ -80,6 +84,10 @@ public class Task{
         }
         this.optional = optional;
         this.resolvable = resolvable;
+        this.generatable = generatable;
+        this.directExtraction = directExtraction;
+        this.forceGenerate = forceGenerate;
+        this.dispatched = new ArrayList<>();
         // this.extractions = extractions;
         this.extraction = extraction;
         this.success = false;
@@ -111,18 +119,13 @@ public class Task{
                     Tool depTool = td.getDependency();
                     TaskExtraction te = null;
                     te = new TaskExtraction(propertyName, p.getDescription());
-                    // if(StringUtil.isNullOrEmpty(td.getExtraction())){
-                    //     te = new TaskExtraction(propertyName, p.getDescription());
-                    // }else{
-                    //     te = new TaskExtraction(propertyName, td.getExtraction());
-                    // }
-                    subTask = new Task(focusManager, this.user, this, depTool, null, te, optnl, true);
+                    subTask = new Task(focusManager, this.user, this, depTool, null, te, optnl, td.isResolvable(), td.isGeneratable(), td.isDirectExtraction(), depTool.isForceGenerate()); 
                 }
             }
 
             if(subTask == null){
                 TaskExtraction te = new TaskExtraction(propertyName, p.getDescription());
-                subTask = new Task(focusManager, this.user, this, null, null, te, optnl, false);
+                subTask = new Task(focusManager, this.user, this, null, null, te, optnl, false, true, false, false);
             }
             
             if(this.params!= null){
@@ -150,6 +153,10 @@ public class Task{
             String val = ToolUtils.getStringParam(call, name);
 
             if(t == null){
+                continue;
+            }
+
+            if(!t.isGeneratable()){
                 continue;
             }
 
@@ -232,10 +239,11 @@ public class Task{
         
         if(this.toolOut != null && this.toolOut.getStatus() == AgentToolOutStatus.control){
             this.parent.addAssistMessage(this.user, this.toolOut.getOutput());
-            if(this.toolOut.getControl() == ControlSignal.form){
-                Asserts.assertTrue(!StringUtil.isNullOrEmpty(extracted), "Task has not extracted value when it is finished.");
-                this.parent.addUserMessage(this.user, this.extracted);
-            }
+            return;
+        }
+
+        // unresolvable task and its function is not invoked.
+        if(!this.isResolvable() && this.getToolOut() == null){
             return;
         }
 
@@ -252,7 +260,7 @@ public class Task{
         }
 
         this.parent.addAssistFunctionCall(this.user, this.getFunctionCall());
-        this.parent.addFunctionCallResult(this.user, this.extracted);
+        this.parent.addFunctionCallResult(this.user, this.getFunctionCall(), this.extracted);
     }
 
 
@@ -294,7 +302,7 @@ public class Task{
 
 
         this.parent.addAssistFunctionCall(this.user, this.getFunctionCall());
-        this.parent.addFunctionCallResult(this.user, failure.getMessage());
+        this.parent.addFunctionCallResult(this.user, this.getFunctionCall(), failure.getMessage());
     }
 
     public void addUserMessage(String user, String message){
@@ -305,8 +313,8 @@ public class Task{
         this.history.add(new ChatMessage(ROLE_ASSIS, message, null, null));
     }
 
-    public void addFunctionCallResult(String user, String result){
-        this.history.add(new ChatMessage(ROLE_FUNC, result, user, null));
+    public void addFunctionCallResult(String user, FunctionCall call, String result){
+        this.history.add(new ChatMessage(ROLE_FUNC, result, call.getName(), null));
     }
 
     public void addAssistFunctionCall(String user, FunctionCall call){
@@ -340,5 +348,16 @@ public class Task{
             }
         }
         return true;
+    }
+
+    public String getPath(){
+        if(this.parent == null){
+            return "/" + this.getName();
+        }
+        return this.parent.getPath() + "/" + this.getName();
+    }
+
+    public void dispatched(String name){
+        this.dispatched.add(name);
     }
 }
